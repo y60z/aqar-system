@@ -538,6 +538,41 @@ function formSection(title, fields){
     </section>
   `;
 }
+
+async function compressImage(base64, maxWidth = 1600, quality = 0.72){
+  return new Promise((resolve)=>{
+    const img = new Image();
+
+    img.onload = ()=>{
+      let w = img.width;
+      let h = img.height;
+
+      if(w > maxWidth){
+        h = Math.round((h * maxWidth) / w);
+        w = maxWidth;
+      }
+
+      const canvas = document.createElement('canvas');
+      canvas.width = w;
+      canvas.height = h;
+
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img,0,0,w,h);
+
+      resolve(canvas.toDataURL('image/jpeg', quality));
+    };
+
+    img.src = base64;
+  });
+}
+
+function estimateStorageSize(){
+  try{
+    return new Blob([JSON.stringify(properties)]).size / 1024 / 1024;
+  }catch{
+    return 0;
+  }
+}
 function renderForm(id=null){
   editingId = id;
 
@@ -584,7 +619,7 @@ function renderForm(id=null){
       <div id="previews" class="previewGrid"></div>
 
       <p class="smallNote">
-        الصور تظهر مصغرة هنا ولا تكبر داخل صفحة الإدخال. الصورة الأولى تعتبر الرئيسية.
+        الصور يتم تصغيرها تلقائيًا قبل الحفظ. الصورة الأولى تعتبر الرئيسية.
       </p>
     </section>
 
@@ -778,27 +813,31 @@ function renderForm(id=null){
   renderPreviews();
 }
 
-function handleImages(e){
+async function handleImages(e){
   const files = [...e.target.files];
 
   if(!files.length) return;
 
-  let done = 0;
+  toast('جارٍ تجهيز الصور...');
 
-  files.forEach(file=>{
-    const r = new FileReader();
+  for(const file of files){
+    const raw = await new Promise((resolve)=>{
+      const r = new FileReader();
+      r.onload = ()=>resolve(r.result);
+      r.readAsDataURL(file);
+    });
 
-    r.onload = ()=>{
-      selectedImages.push(r.result);
-      done++;
+    const compressed = await compressImage(raw);
+    selectedImages.push(compressed);
+  }
 
-      if(done === files.length){
-        renderPreviews();
-      }
-    };
+  renderPreviews();
 
-    r.readAsDataURL(file);
-  });
+  const size = estimateStorageSize();
+
+  if(size > 18){
+    toast('اقتربت مساحة التخزين من الحد الأعلى');
+  }
 
   e.target.value = '';
 }
@@ -954,7 +993,7 @@ function saveProperty(next='home'){
 
     if(String(err).toLowerCase().includes('quota')){
       alert(
-        'تم منع الحفظ لأن الصور كبيرة جدًا. احذف بعض الصور أو قلل حجمها ثم احفظ مرة أخرى.'
+        'الصور لا تزال كبيرة جدًا. احذف بعض الصور أو قلل عددها ثم احفظ مرة أخرى.'
       );
       return;
     }
@@ -1203,7 +1242,6 @@ function archiveProperty(id){
   );
 
   saveStore();
-
   renderHome();
 }
 
@@ -1221,7 +1259,6 @@ function unarchiveProperty(id){
   );
 
   saveStore();
-
   renderArchive();
 }
 
@@ -1231,7 +1268,6 @@ function deleteProperty(id){
   properties = properties.filter(p => p.id !== id);
 
   saveStore();
-
   renderHome();
 }
 
@@ -1294,134 +1330,128 @@ function pdfPage(p,imgs){
 
       <div class="wm">رواد</div>
 
-      <div class="content">
+      <div class="pageInner">
 
-        ${pdfHeader(p)}
+        <div class="content">
 
-        <div class="hero">
+          ${pdfHeader(p)}
 
-          <div class="heroImg">
-            ${
-              imgs[0]
-              ? `<img src="${imgs[0]}">`
-              : ''
-            }
-          </div>
+          <div class="hero">
 
-          <div>
+            <div class="heroImg">
+              ${
+                imgs[0]
+                ? `<img src="${imgs[0]}">`
+                : ''
+              }
+            </div>
 
-            <div class="bar">معلومات العقار الأساسية</div>
+            <div>
 
-            <div class="pdfGrid">
+              <div class="bar">معلومات العقار الأساسية</div>
 
-              ${pdfCell('نوع العقار',p.type)}
-              ${pdfCell('التصنيف',p.category)}
-              ${pdfCell('الحالة',p.status)}
-              ${pdfCell('المدينة',p.city)}
-              ${pdfCell('الحي',p.district)}
-              ${pdfCell('المساحة',p.area)}
-              ${pdfCell('الواجهة',p.frontage)}
-              ${pdfCell('عرض الشارع',p.streetWidth)}
-              ${pdfCell('رقم القطعة',p.plotNo)}
+              <div class="pdfGrid">
+
+                ${pdfCell('نوع العقار',p.type)}
+                ${pdfCell('التصنيف',p.category)}
+                ${pdfCell('الحالة',p.status)}
+                ${pdfCell('المدينة',p.city)}
+                ${pdfCell('الحي',p.district)}
+                ${pdfCell('المساحة',p.area)}
+                ${pdfCell('الواجهة',p.frontage)}
+                ${pdfCell('عرض الشارع',p.streetWidth)}
+                ${pdfCell('رقم القطعة',p.plotNo)}
+
+              </div>
 
             </div>
 
           </div>
 
-        </div>
+          <div class="bar">الحدود والأطوال</div>
 
-        <div class="bar">الحدود والأطوال</div>
+          <table class="tbl">
+            <tr>
+              <th>الاتجاه</th>
+              <th>ما يحده</th>
+              <th>الطول</th>
+            </tr>
 
-        <table class="tbl">
+            <tr>
+              <td>الشمال</td>
+              <td>${esc(p.northBound || '-')}</td>
+              <td>${esc(p.northLength || '-')}</td>
+            </tr>
 
-          <tr>
-            <th>الاتجاه</th>
-            <th>ما يحده</th>
-            <th>الطول</th>
-          </tr>
+            <tr>
+              <td>الجنوب</td>
+              <td>${esc(p.southBound || '-')}</td>
+              <td>${esc(p.southLength || '-')}</td>
+            </tr>
 
-          <tr>
-            <td>الشمال</td>
-            <td>${esc(p.northBound || '-')}</td>
-            <td>${esc(p.northLength || '-')}</td>
-          </tr>
+            <tr>
+              <td>الشرق</td>
+              <td>${esc(p.eastBound || '-')}</td>
+              <td>${esc(p.eastLength || '-')}</td>
+            </tr>
 
-          <tr>
-            <td>الجنوب</td>
-            <td>${esc(p.southBound || '-')}</td>
-            <td>${esc(p.southLength || '-')}</td>
-          </tr>
+            <tr>
+              <td>الغرب</td>
+              <td>${esc(p.westBound || '-')}</td>
+              <td>${esc(p.westLength || '-')}</td>
+            </tr>
+          </table>
 
-          <tr>
-            <td>الشرق</td>
-            <td>${esc(p.eastBound || '-')}</td>
-            <td>${esc(p.eastLength || '-')}</td>
-          </tr>
+          <div class="two">
 
-          <tr>
-            <td>الغرب</td>
-            <td>${esc(p.westBound || '-')}</td>
-            <td>${esc(p.westLength || '-')}</td>
-          </tr>
+            <div>
+              <div class="bar">تفاصيل العقار</div>
 
-        </table>
-
-        <div class="two">
-
-          <div>
-
-            <div class="bar">تفاصيل العقار</div>
-
-            <div
-              class="pdfGrid"
-              style="grid-template-columns:1fr 1fr"
-            >
-
-              ${pdfCell('رقم المخطط',p.planNo)}
-              ${pdfCell('الطول',p.length)}
-              ${pdfCell('العرض',p.width)}
-              ${pdfCell('الغرف',p.rooms)}
-              ${pdfCell('دورات المياه',p.baths)}
-              ${pdfCell('المواقف',p.parking)}
-
+              <div
+                class="pdfGrid"
+                style="grid-template-columns:1fr 1fr"
+              >
+                ${pdfCell('رقم المخطط',p.planNo)}
+                ${pdfCell('الطول',p.length)}
+                ${pdfCell('العرض',p.width)}
+                ${pdfCell('الغرف',p.rooms)}
+                ${pdfCell('دورات المياه',p.baths)}
+                ${pdfCell('المواقف',p.parking)}
+              </div>
             </div>
 
-          </div>
+            <div>
+              <div class="bar">وصف العقار</div>
 
-          <div>
+              <div class="box">
+                ${esc(p.description || '-')}
+              </div>
 
-            <div class="bar">وصف العقار</div>
+              <div class="bar">الخدمات المتوفرة</div>
 
-            <div class="box">
-              ${esc(p.description || '-')}
-            </div>
-
-            <div class="bar">الخدمات المتوفرة</div>
-
-            <div class="services">
+              <div class="services">
+                ${
+                  (p.services || []).map(s=>`
+                    <div>✓ ${esc(s)}</div>
+                  `).join('') || '<div>-</div>'
+                }
+              </div>
 
               ${
-                (p.services || []).map(s=>`
-                  <div>✓ ${esc(s)}</div>
-                `).join('') || '<div>-</div>'
+                p.mapLink
+                ? `
+                  <div class="mapBox">
+                    <a
+                      href="${mapUrl(p.mapLink)}"
+                      target="_blank"
+                    >
+                      فتح الموقع في الخرائط
+                    </a>
+                  </div>
+                `
+                : ''
               }
-
             </div>
-
-            ${
-              p.mapLink
-              ? `
-                <div class="mapBox">
-                  <a
-                    href="${mapUrl(p.mapLink)}"
-                    target="_blank"
-                  >
-                    فتح الموقع في الخرائط
-                  </a>
-                </div>
-              `
-              : ''
-            }
 
           </div>
 
@@ -1437,21 +1467,31 @@ function pdfPage(p,imgs){
 function pdfGalleryPage(p,arr,n){
   return `
     <section class="page">
-      <div class="content">
-        ${pdfHeader(p)}
 
-        <div class="bar">صور العقار</div>
+      <div class="pageInner">
 
-        <div class="gallery">
-          ${
-            arr.map(src=>`
-              <img src="${src}">
-            `).join('')
-          }
+        <div class="content">
+
+          ${pdfHeader(p)}
+
+          <div class="bar">
+            صور العقار - صفحة ${n}
+          </div>
+
+          <div class="gallery">
+            ${
+              arr.map(src=>`
+                <img src="${src}">
+              `).join('')
+            }
+          </div>
+
         </div>
+
       </div>
 
       ${pdfFooter()}
+
     </section>
   `;
 }
@@ -1465,8 +1505,8 @@ function openPdf(p,preview=false){
 
   const galleryPages = [];
 
-  for(let i=0; i<gal.length; i+=6){
-    const chunk = gal.slice(i,i+6);
+  for(let i=0; i<gal.length; i+=4){
+    const chunk = gal.slice(i,i+4);
 
     if(chunk.length){
       galleryPages.push(chunk);
@@ -1485,8 +1525,10 @@ function openPdf(p,preview=false){
         margin:0;
       }
 
+      html,
       body{
         margin:0;
+        padding:0;
         background:#eee;
         font-family:Arial,Tahoma,sans-serif;
         color:#123;
@@ -1498,9 +1540,18 @@ function openPdf(p,preview=false){
         background:#fff;
         margin:0 auto;
         position:relative;
-        padding:12mm 12mm 25mm;
         box-sizing:border-box;
+        overflow:hidden;
         page-break-after:always;
+      }
+
+      .pageInner{
+        position:absolute;
+        top:10mm;
+        right:10mm;
+        left:10mm;
+        bottom:20mm;
+        box-sizing:border-box;
         overflow:hidden;
       }
 
@@ -1557,7 +1608,7 @@ function openPdf(p,preview=false){
       }
 
       .heroImg{
-        height:205px;
+        height:190px;
         border-radius:10px;
         overflow:hidden;
         background:#eef2f1;
@@ -1567,6 +1618,7 @@ function openPdf(p,preview=false){
         width:100%;
         height:100%;
         object-fit:cover;
+        display:block;
       }
 
       .pdfGrid{
@@ -1578,24 +1630,24 @@ function openPdf(p,preview=false){
       }
 
       .pdfCell{
-        min-height:55px;
+        min-height:50px;
         border:1px solid #d8e2df;
         text-align:center;
-        padding:7px;
+        padding:6px;
         box-sizing:border-box;
       }
 
       .pdfCell small{
         display:block;
         color:#567;
-        font-size:11px;
+        font-size:10px;
       }
 
       .pdfCell b{
         display:block;
-        margin-top:5px;
+        margin-top:4px;
         color:#0a332d;
-        font-size:13px;
+        font-size:12px;
       }
 
       .bar{
@@ -1603,9 +1655,10 @@ function openPdf(p,preview=false){
         color:#fff;
         text-align:center;
         font-weight:bold;
-        padding:6px;
+        padding:5px;
         border-radius:6px 6px 0 0;
-        margin-top:10px;
+        margin-top:8px;
+        font-size:12px;
       }
 
       .tbl{
@@ -1621,9 +1674,9 @@ function openPdf(p,preview=false){
       .tbl td,
       .tbl th{
         border:1px solid #d8e2df;
-        padding:6px;
+        padding:5px;
         text-align:center;
-        font-size:12px;
+        font-size:11px;
       }
 
       .two{
@@ -1635,9 +1688,9 @@ function openPdf(p,preview=false){
       .box{
         border:1px solid #d8e2df;
         border-radius:0 0 8px 8px;
-        padding:9px;
-        min-height:62px;
-        font-size:12px;
+        padding:8px;
+        min-height:52px;
+        font-size:11px;
         box-sizing:border-box;
       }
 
@@ -1649,17 +1702,17 @@ function openPdf(p,preview=false){
       .services div{
         border:1px solid #d8e2df;
         text-align:center;
-        padding:8px;
-        font-size:11px;
+        padding:6px;
+        font-size:10px;
         box-sizing:border-box;
       }
 
       .gallery{
         display:grid;
         grid-template-columns:1fr 1fr;
-        grid-template-rows:repeat(3,1fr);
-        gap:10px;
-        margin-top:14px;
+        grid-template-rows:1fr 1fr;
+        gap:10mm;
+        margin-top:12mm;
         height:210mm;
       }
 
@@ -1670,12 +1723,13 @@ function openPdf(p,preview=false){
         border-radius:8px;
         border:1px solid #d8e2df;
         box-sizing:border-box;
+        display:block;
       }
 
       .mapBox{
         border:1px solid #d8e2df;
         border-radius:8px;
-        padding:10px;
+        padding:8px;
         text-align:center;
         margin-top:8px;
       }
@@ -1693,11 +1747,11 @@ function openPdf(p,preview=false){
         bottom:0;
         background:#004d3d;
         color:#fff;
-        height:18mm;
+        height:16mm;
         display:flex;
         align-items:center;
         justify-content:space-around;
-        font-size:11px;
+        font-size:10px;
         padding:0 8mm;
         box-sizing:border-box;
       }
@@ -1718,55 +1772,53 @@ function openPdf(p,preview=false){
         z-index:1;
       }
 
-      .printBtn{
+      .pdfTopActions{
         position:fixed;
         top:10px;
         left:10px;
+        right:10px;
         z-index:99;
-        padding:12px 18px;
+        display:flex;
+        gap:8px;
+        justify-content:space-between;
+      }
+
+      .pdfTopActions button{
+        padding:12px 14px;
         border:0;
         border-radius:10px;
         background:#004d3d;
         color:white;
+        font-weight:bold;
       }
 
-      .closeBtn{
-        position:fixed;
-        top:10px;
-        right:10px;
-        z-index:99;
-        padding:12px 18px;
-        border:0;
-        border-radius:10px;
+      .pdfTopActions .closeBtn{
         background:#777;
-        color:white;
       }
 
       @media print{
+        html,
         body{
           background:#fff;
         }
 
-        .printBtn,
-        .closeBtn{
+        .pdfTopActions{
           display:none;
         }
 
         .page{
           margin:0;
+          page-break-after:always;
         }
       }
     </style>
   </head>
 
   <body>
-    <button class="closeBtn" onclick="window.close()">
-      إغلاق المعاينة
-    </button>
-
-    <button class="printBtn" onclick="window.print()">
-      طباعة / حفظ PDF
-    </button>
+    <div class="pdfTopActions">
+      <button class="closeBtn" onclick="window.close()">إغلاق</button>
+      <button onclick="window.print()">حفظ أو مشاركة PDF</button>
+    </div>
 
     ${pdfPage(p,imgs)}
 
