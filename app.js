@@ -1,54 +1,541 @@
-const $=(s,r=document)=>r.querySelector(s);const $$=(s,r=document)=>[...r.querySelectorAll(s)];
-function uid(){return (window.crypto&&crypto.randomUUID)?crypto.randomUUID():('p_'+Date.now()+'_'+Math.random().toString(36).slice(2));}
-const storeKey='aqar_final_properties_v3',settingsKey='aqar_final_settings_v3';
-const icons={home:'🏠',map:'📍',area:'📐',road:'🛣️',compass:'🧭',plan:'🗺️',piece:'▣',bed:'🛏️',bath:'🛁',car:'🚗',phone:'☎️',mail:'✉️',edit:'✏️',trash:'🗑️',archive:'📦',share:'🔗',save:'💾',plus:'＋',gear:'⚙️',search:'🔍',user:'👤',qr:'▦'};
-const blank={id:null,offerNumber:'',status:'متاح',name:'',type:'',category:'',city:'',district:'',street:'',locationUrl:'',area:'',length:'',width:'',streetWidth:'',frontage:'',planNumber:'',plotNumber:'',rooms:'',bathrooms:'',parking:'',services:[],description:'',images:[],ownerName:'',ownerPhone:'',brokerName:'',brokerPhone:'',directBrokerPhone:'',brokersCount:'',commission:'',price:'',lastBid:'',privateNotes:'',bounds:{north:{limit:'',length:''},south:{limit:'',length:''},east:{limit:'',length:''},west:{limit:'',length:''}},archived:false,createdAt:'',updatedAt:''};
-let state={screen:'home',properties:load(storeKey,[]),settings:load(settingsKey,defaultSettings()),editing:null,filter:'الكل',section:'public',query:'',offerQuery:'',selectedImg:0};
-function defaultSettings(){return{company:'مؤسسة رواد الأفق للاستثمار',phone1:'0552209226',phone2:'0500277257',email:'rwadalafq@gmail.com',address:'الفيصلية - طريق المطار',logo:'logo.jpeg'}}
-function load(k,d){try{return JSON.parse(localStorage.getItem(k))||d}catch{return d}}function save(k,v){localStorage.setItem(k,JSON.stringify(v))}function persist(){save(storeKey,state.properties);save(settingsKey,state.settings)}
-function esc(v){return String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]))}
-function val(v,unit=''){return v?esc(v)+(unit?' '+unit:''):'—'}function today(){return new Date().toLocaleString('ar-SA',{hour:'2-digit',minute:'2-digit',year:'numeric',month:'2-digit',day:'2-digit'})}
-function nextOffer(){let nums=state.properties.map(p=>+p.offerNumber).filter(Boolean);return nums.length?Math.max(...nums)+1:1001}
-function render(){const app=$('#app');app.innerHTML=`<div class="wrap">${header()}<main>${screens()}</main></div>`;bind()}
-function header(){return `<div class="top"><div class="brand"><img src="${esc(state.settings.logo)}"><div><div class="title">إدارة العقارات</div><div class="muted small">بياناتك محفوظة محليًا داخل جهازك</div></div></div><div class="actions"><button class="btn" data-nav="settings">${icons.gear} الإعدادات</button><button class="btn" data-archive-toggle>${icons.archive} الأرشيف</button><button class="btn primary" data-add>${icons.plus} إضافة عقار</button></div></div>`}
-function screens(){return `<section class="screen ${state.screen==='home'?'active':''}">${home()}</section><section class="screen ${state.screen==='form'?'active':''}">${form()}</section><section class="screen ${state.screen==='detail'?'active':''}">${detail()}</section><section class="screen ${state.screen==='settings'?'active':''}">${settings()}</section>`}
-function visibleProps(){let arr=state.properties.filter(p=>state.section==='archive'?p.archived:!p.archived);if(state.filter!=='الكل')arr=arr.filter(p=>p.type===state.filter);if(state.query){const q=state.query.toLowerCase();arr=arr.filter(p=>JSON.stringify(p).toLowerCase().includes(q))}if(state.offerQuery){arr=arr.filter(p=>String(p.offerNumber).includes(state.offerQuery))}return arr.sort((a,b)=>(b.updatedAt||'').localeCompare(a.updatedAt||''))}
-function types(){return ['الكل',...new Set(state.properties.filter(p=>p.type).map(p=>p.type))]}
-function home(){let arr=visibleProps();return `<div class="searches"><div class="field">${icons.search}<input data-q placeholder="بحث شامل في كامل التفاصيل: المالك، الحي، الشارع، النوع، المساحة..." value="${esc(state.query)}"></div><div class="field">#<input data-offer-q placeholder="بحث برقم العرض فقط" value="${esc(state.offerQuery)}"></div></div><div class="filters">${types().map(t=>`<button class="chip ${state.filter===t?'active':''}" data-filter="${esc(t)}">${esc(t)}<br><span class="small">${t==='الكل'?state.properties.filter(p=>!p.archived).length:state.properties.filter(p=>!p.archived&&p.type===t).length}</span></button>`).join('')}</div><div class="tabs"><button class="tab ${state.section==='public'?'active':''}" data-section="public">عام (${state.properties.filter(p=>!p.archived).length})</button><button class="tab ${state.section==='archive'?'active':''}" data-section="archive">الأرشيف (${state.properties.filter(p=>p.archived).length})</button></div><div class="list">${arr.length?arr.map(card).join(''):`<div class="card empty">لا توجد عقارات. اضغط إضافة عقار للبدء، والحفظ يقبل بدون بيانات حسب اتفاقنا.</div>`}</div>`}
-function card(p){let img=p.images?.[0]?.data||'';return `<article class="card property-card"><div class="thumb">${img?`<img src="${img}">`:''}<span class="badge ${p.archived?'archived':p.status==='تحت التفاوض'?'neg':''}" style="position:absolute;top:8px;right:8px">${esc(p.archived?'أرشيف':p.status||'متاح')}</span><span class="small" style="position:absolute;bottom:8px;left:8px;background:#0008;color:white;border-radius:8px;padding:3px 7px">${icons.share} ${p.images?.length||0}</span></div><div><div class="pc-title">${esc(p.name||'عقار بدون اسم')}</div><div class="muted">${icons.map} ${esc([p.city,p.district,p.street].filter(Boolean).join(' - ')||'بدون موقع')}</div><div class="meta"><span>${icons.area} ${val(p.area,'م²')}</span><span>${icons.home} ${val(p.type)}</span><span>${icons.compass} ${val(p.frontage)}</span><span>${icons.road} ${val(p.streetWidth,'م')}</span>${p.price?`<span>السعر: ${esc(p.price)}</span>`:''}</div><div class="row-actions"><button class="btn primary" data-open="${p.id}">عرض التفاصيل</button><button class="btn" data-edit="${p.id}">${icons.edit}</button><button class="btn warn" data-arch="${p.id}">${p.archived?'نقل إلى العام':'أرشفة'}</button><button class="btn danger" data-del="${p.id}">${icons.trash}</button></div></div><div class="offer-box"><div class="small">رقم العرض</div>${esc(p.offerNumber||'—')}</div></article>`}
-function form(){let p=state.editing||{...blank,offerNumber:nextOffer()};return `<div class="details-head"><button class="btn" data-back>رجوع</button><h2>${p.id?'تعديل عقار':'إضافة عقار جديد'}</h2><span class="badge">رقم العرض ${esc(p.offerNumber||nextOffer())}</span></div><div class="form-grid"><div class="section"><h3>الصور والفيديو</h3><div class="media-grid"><label class="media-box">${icons.plus}<br>إضافة صور<input type="file" accept="image/*" multiple hidden data-images></label>${(p.images||[]).map((im,i)=>`<div class="media-item"><img src="${im.data}"><button data-rm-img="${i}">×</button></div>`).join('')}</div><div class="muted small">الصور تحفظ داخل جهازك وتظهر في PDF بصفحات مرتبة.</div></div>${sectionBasic(p)}${sectionLocation(p)}${sectionLand(p)}${sectionBounds(p)}${sectionExtra(p)}${sectionInternal(p)}<div class="footer-actions"><button class="btn primary" data-save>${icons.save} حفظ العقار</button><button class="btn" data-save-new>${icons.plus} حفظ وإضافة جديد</button><button class="btn" data-preview>معاينة</button></div></div>`}
-function input(name,label,p,ph='',type='text'){return `<div class="input"><label>${label}</label><input name="${name}" type="${type}" placeholder="${ph}" value="${esc(p[name]||'')}"></div>`}
-function textarea(name,label,p,ph=''){return `<div class="input"><label>${label}</label><textarea name="${name}" placeholder="${ph}">${esc(p[name]||'')}</textarea></div>`}
-function select(name,label,p,opts){return `<div class="input"><label>${label}</label><select name="${name}"><option value="">اختر</option>${opts.map(o=>`<option ${p[name]===o?'selected':''}>${o}</option>`).join('')}</select></div>`}
-function sectionBasic(p){return `<div class="section"><h3>المعلومات الأساسية</h3><div class="grid4">${input('name','اسم العقار',p,'مثال: فيلا فاخرة بحي النخيل')}${input('type','نوع العقار',p,'فيلا، أرض، عمارة، محل...')}${select('category','التصنيف',p,['سكني','تجاري','سكني/تجاري'])}${select('status','الحالة',p,['متاح','تحت التفاوض','محجوز','مؤجر','مباع','غير متاح'])}</div></div>`}
-function sectionLocation(p){return `<div class="section"><h3>بيانات الموقع</h3><div class="grid4">${input('city','المدينة',p)}${input('district','الحي',p)}${input('street','الشارع',p)}${input('locationUrl','رابط الموقع أو الإحداثيات',p,'Google Maps / Apple Maps / إحداثيات')}</div>${p.locationUrl?`<p><a class="btn" href="${mapHref(p.locationUrl)}" target="_blank">${icons.map} فتح الموقع في الخرائط</a></p>`:''}</div>`}
-function sectionLand(p){return `<div class="section"><h3>بيانات الأرض / العقار</h3><div class="grid4">${input('area','المساحة',p,'م²')}${input('length','الطول',p,'م')}${input('width','العرض',p,'م')}${input('streetWidth','عرض الشارع',p,'م')}${select('frontage','واجهة العقار',p,['شمال','جنوب','شرق','غرب','شمال شرقي','شمال غربي','جنوب شرقي','جنوب غربي','شارعين','ثلاث شوارع'])}${input('planNumber','رقم المخطط',p)}${input('plotNumber','رقم القطعة',p)}</div></div>`}
-function sectionBounds(p){const b=p.bounds||blank.bounds;let dirs=[['north','الشمال'],['south','الجنوب'],['east','الشرق'],['west','الغرب']];return `<div class="section"><h3>الحدود والأطوال</h3>${dirs.map(([k,l])=>`<div class="bounds"><b>${l}</b><div class="input"><label>ما يحد العقار</label><input name="bound_${k}_limit" placeholder="شارع، جار، ممر..." value="${esc(b[k]?.limit||'')}"></div><div class="input"><label>الطول</label><input name="bound_${k}_length" placeholder="م" value="${esc(b[k]?.length||'')}"></div></div>`).join('')}</div>`}
-function sectionExtra(p){return `<div class="section"><h3>بيانات إضافية</h3><div class="grid3">${input('rooms','عدد الغرف',p)}${input('bathrooms','دورات المياه',p)}${input('parking','مواقف السيارات',p)}</div><div class="grid2" style="margin-top:12px"><div>${textarea('servicesText','الخدمات المتوفرة', {...p,servicesText:(p.services||[]).join('\n')}, 'اكتب كل خدمة في سطر: مسجد، مدارس، بقالة...')}</div>${textarea('description','وصف العقار',p,'وصف تسويقي يظهر في PDF')}</div></div>`}
-function sectionInternal(p){return `<div class="section internal"><h3>${icons.user} معلومات داخلية — تظهر لك فقط ولا تظهر في PDF</h3><div class="grid4">${input('ownerName','اسم المالك',p)}${input('ownerPhone','رقم المالك',p)}${input('brokerName','اسم الوسيط',p)}${input('brokerPhone','رقم الوسيط',p)}${input('directBrokerPhone','رقم الوسيط المباشر',p)}${input('brokersCount','عدد الوسطاء',p)}${input('commission','السعي / النسبة أو المبلغ',p,'2.5% أو 25000 ريال')}${input('price','السعر',p)}${input('lastBid','آخر سومة',p)}</div>${textarea('privateNotes','ملاحظات خاصة',p,'هذه لا تظهر في المشاركة')}</div>`}
-function readForm(){let f=$('.screen.active');let p=state.editing?JSON.parse(JSON.stringify(state.editing)):JSON.parse(JSON.stringify(blank));p.id=p.id||uid();p.offerNumber=p.offerNumber||nextOffer();$$('input[name],textarea[name],select[name]',f).forEach(el=>{if(el.name==='servicesText')p.services=el.value.split('\n').map(x=>x.trim()).filter(Boolean);else if(el.name.startsWith('bound_')){let [,dir,key]=el.name.split('_');p.bounds=p.bounds||JSON.parse(JSON.stringify(blank.bounds));p.bounds[dir][key]=el.value}else p[el.name]=el.value});p.createdAt=p.createdAt||today();p.updatedAt=today();return p}
-function saveForm(addNew=false){let p=readForm();let i=state.properties.findIndex(x=>x.id===p.id);if(i>=0)state.properties[i]=p;else state.properties.push(p);state.editing=addNew?{...blank,offerNumber:nextOffer(),images:[]}:null;persist();alert('تم حفظ العقار');state.screen=addNew?'form':'home';render()}
-function detail(){let p=state.properties.find(x=>x.id===state.current);if(!p)return `<div class="empty">العقار غير موجود</div>`;let img=p.images?.[state.selectedImg]?.data||p.images?.[0]?.data;return `<div class="details-head"><button class="btn" data-back>رجوع</button><h2>عرض رقم ${esc(p.offerNumber)}</h2><button class="btn" data-more>•••</button></div><div class="section"><span class="badge ${p.archived?'archived':''}">${p.archived?'أرشيف':esc(p.status||'متاح')}</span><div class="gallery-main">${img?`<img src="${img}">`:''}</div><div class="gallery-strip">${(p.images||[]).map((im,i)=>`<img class="${i===state.selectedImg?'sel':''}" data-img-sel="${i}" src="${im.data}">`).join('')}</div></div><div class="section"><h3>${esc(p.name||'عقار بدون اسم')}</h3><p class="muted">${icons.map} ${esc([p.city,p.district,p.street].filter(Boolean).join(' - ')||'بدون موقع')}</p><div class="detail-grid">${detailCell('نوع العقار',p.type,icons.home)}${detailCell('التصنيف',p.category)}${detailCell('الحالة',p.status)}${detailCell('المساحة',p.area,'م²')}${detailCell('الطول',p.length,'م')}${detailCell('العرض',p.width,'م')}${detailCell('عرض الشارع',p.streetWidth,'م')}${detailCell('الواجهة',p.frontage)}${detailCell('رقم المخطط',p.planNumber)}${detailCell('رقم القطعة',p.plotNumber)}${detailCell('الغرف',p.rooms)}${detailCell('دورات المياه',p.bathrooms)}${detailCell('المواقف',p.parking)}</div></div><div class="section"><h3>الحدود والأطوال</h3><table class="table"><tr><th>الاتجاه</th><th>ما يحد العقار</th><th>الطول</th></tr>${boundsRows(p)}</table></div><div class="section"><h3>وصف العقار</h3><p>${esc(p.description||'—')}</p></div><div class="section"><h3>الخدمات المتوفرة</h3><div class="services">${(p.services||[]).map(s=>`<div class="service">✓<br>${esc(s)}</div>`).join('')||'—'}</div></div><div class="section internal"><h3>معلومات داخلية لا تظهر في PDF</h3><div class="detail-grid">${detailCell('المالك',person(p.ownerName,'owner'),p.ownerPhone)}${detailCell('الوسيط',person(p.brokerName,'broker'),p.brokerPhone)}${detailCell('عدد الوسطاء',p.brokersCount)}${detailCell('السعي',p.commission)}${detailCell('السعر',p.price)}${detailCell('آخر سومة',p.lastBid)}${detailCell('ملاحظات خاصة',p.privateNotes)}</div></div><div class="section"><h3>الموقع</h3>${p.locationUrl?`<a class="btn primary" href="${mapHref(p.locationUrl)}" target="_blank">فتح الموقع في الخرائط</a>`:'—'}</div><div class="footer-actions"><button class="btn primary" data-edit="${p.id}">${icons.edit} تعديل</button><button class="btn" data-pdf="${p.id}">${icons.share} مشاركة PDF</button><button class="btn warn" data-arch="${p.id}">${p.archived?'نقل للعام':'أرشفة'}</button><button class="btn danger" data-del="${p.id}">${icons.trash} حذف</button></div>`}
-function detailCell(k,v,u=''){return `<div class="detail-cell"><b>${k}</b>${typeof v==='string'&&v.includes('<')?v:val(v,u)}</div>`}
-function boundsRows(p){let b=p.bounds||blank.bounds;return [['الشمال','north'],['الجنوب','south'],['الشرق','east'],['الغرب','west']].map(([l,k])=>`<tr><td>${l}</td><td>${val(b[k]?.limit)}</td><td>${val(b[k]?.length,'م')}</td></tr>`).join('')}
-function person(name,type){return name?`<span class="person-link" data-person="${type}" data-name="${esc(name)}">${esc(name)}</span>`:'—'}
-function settings(){return `<div class="details-head"><button class="btn" data-back>رجوع</button><h2>الإعدادات</h2></div><div class="section"><h3>هوية المؤسسة</h3><div class="settings-grid">${inputSetting('company','اسم المؤسسة')}${inputSetting('phone1','رقم التواصل الأول')}${inputSetting('phone2','رقم التواصل الثاني')}${inputSetting('email','البريد الإلكتروني')}${inputSetting('address','العنوان')}</div><div style="margin-top:12px"><label class="btn">رفع شعار<input type="file" accept="image/*" hidden data-logo></label></div></div><div class="section"><h3>النسخ الاحتياطي</h3><button class="btn primary" data-export>تصدير نسخة احتياطية</button> <label class="btn">استيراد نسخة<input type="file" accept=".aqarbackup,.json" hidden data-import></label></div>`}
-function inputSetting(k,l){return `<div class="input"><label>${l}</label><input data-setting="${k}" value="${esc(state.settings[k]||'')}"></div>`}
-function mapHref(url){let u=String(url||'').trim();if(!u)return '#';if(/^https?:\/\//.test(u))return u;if(/^-?\d+(\.\d+)?\s*,\s*-?\d+(\.\d+)?$/.test(u))return `https://maps.google.com/?q=${encodeURIComponent(u)}`;return `https://maps.google.com/?q=${encodeURIComponent(u)}`}
-async function filesToImages(files){let arr=[];for(const file of files){arr.push({name:file.name,data:await new Promise(res=>{let r=new FileReader();r.onload=()=>res(r.result);r.readAsDataURL(file)})})}return arr}
-function bind(){document.addEventListener('click',clickOnce,{once:true});
-let saveBtn=$('[data-save]');if(saveBtn)saveBtn.onclick=(ev)=>{ev.preventDefault();ev.stopPropagation();saveForm(false)};
-let saveNewBtn=$('[data-save-new]');if(saveNewBtn)saveNewBtn.onclick=(ev)=>{ev.preventDefault();ev.stopPropagation();saveForm(true)};
-let previewBtn=$('[data-preview]');if(previewBtn)previewBtn.onclick=(ev)=>{ev.preventDefault();ev.stopPropagation();previewForm()};
-$$('[data-q]').forEach(e=>e.oninput=()=>{state.query=e.value;render()});$$('[data-offer-q]').forEach(e=>e.oninput=()=>{state.offerQuery=e.value;render()});$$('[data-setting]').forEach(e=>e.onchange=()=>{state.settings[e.dataset.setting]=e.value;persist()});let imgs=$('[data-images]');if(imgs)imgs.onchange=async()=>{state.editing=readForm();state.editing.images=[...(state.editing.images||[]),...await filesToImages(imgs.files)];render()};let logo=$('[data-logo]');if(logo)logo.onchange=async()=>{let [im]=await filesToImages(logo.files);if(im){state.settings.logo=im.data;persist();render()}};let imp=$('[data-import]');if(imp)imp.onchange=async()=>{let txt=await imp.files[0].text();let data=JSON.parse(txt);state.properties=data.properties||[];state.settings=data.settings||defaultSettings();persist();render()}}
-function previewForm(){let p=readForm();state.current=p.id;let i=state.properties.findIndex(x=>x.id===p.id);if(i<0)state.properties.push(p);else state.properties[i]=p;persist();state.screen='detail';state.editing=null;render()}
-function clickOnce(e){let t=e.target.closest('[data-add],[data-nav],[data-back],[data-filter],[data-section],[data-open],[data-edit],[data-del],[data-arch],[data-save],[data-save-new],[data-preview],[data-rm-img],[data-img-sel],[data-pdf],[data-export],[data-archive-toggle],[data-person]');if(!t){bind();return}e.preventDefault();if(t.dataset.add!==undefined){state.editing={...blank,offerNumber:nextOffer(),images:[]};state.screen='form';render()}else if(t.dataset.nav){state.screen=t.dataset.nav;render()}else if(t.dataset.back!==undefined){state.screen='home';state.editing=null;render()}else if(t.dataset.filter){state.filter=t.dataset.filter;render()}else if(t.dataset.section){state.section=t.dataset.section;render()}else if(t.dataset.archiveToggle!==undefined){state.section=state.section==='archive'?'public':'archive';state.screen='home';render()}else if(t.dataset.open){state.current=t.dataset.open;state.selectedImg=0;state.screen='detail';render()}else if(t.dataset.edit){state.editing=JSON.parse(JSON.stringify(state.properties.find(p=>p.id===t.dataset.edit)));state.screen='form';render()}else if(t.dataset.del){if(confirm('حذف نهائي؟')){state.properties=state.properties.filter(p=>p.id!==t.dataset.del);persist();state.screen='home';render()}}else if(t.dataset.arch){let p=state.properties.find(p=>p.id===t.dataset.arch);p.archived=!p.archived;p.status=p.archived?(p.status||'مؤرشف'):p.status;p.updatedAt=today();persist();render()}else if(t.dataset.save!==undefined)saveForm(false);else if(t.dataset.saveNew!==undefined)saveForm(true);else if(t.dataset.preview!==undefined)previewForm()else if(t.dataset.rmImg!==undefined){state.editing=readForm();state.editing.images.splice(+t.dataset.rmImg,1);render()}else if(t.dataset.imgSel!==undefined){state.selectedImg=+t.dataset.imgSel;render()}else if(t.dataset.pdf){openReport(state.properties.find(p=>p.id===t.dataset.pdf))}else if(t.dataset.export!==undefined){let blob=new Blob([JSON.stringify({properties:state.properties,settings:state.settings},null,2)],{type:'application/json'});let a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='AqarBackup.aqarbackup';a.click()}else if(t.dataset.person){let name=t.dataset.name;let res=state.properties.filter(p=>p.ownerName===name||p.brokerName===name);alert(`العقارات المرتبطة بـ ${name}\nعدد العروض: ${res.length}\n`+res.map(p=>`${p.offerNumber} - ${p.name||'بدون اسم'}`).join('\n'))}bind()}
-function openReport(p){let w=window.open('','_blank');w.document.write(reportHTML(p));w.document.close();setTimeout(()=>w.print(),700)}
-function qrBox(text){return `<div class="report-qr">${icons.qr}<br><span class="small">${esc(text)}</span></div>`}
-function reportHTML(p){let imgs=p.images||[];let galleryPages=[];for(let i=0;i<imgs.length;i+=6)galleryPages.push(imgs.slice(i,i+6));let s=state.settings;return `<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><title>عرض ${esc(p.offerNumber)}</title><link rel="stylesheet" href="style.css"></head><body class="report-body">${reportPage1(p,s,imgs)}${galleryPages.map((g,i)=>reportGallery(p,s,g,i+2,galleryPages.length+1)).join('')}</body></html>`}
-function reportHeader(p,s){return `<div class="watermark"><img src="${esc(s.logo)}"></div><div class="report-head"><div><img src="${esc(s.logo)}"></div><div><div class="report-title">تقرير عقاري</div><div class="muted" style="text-align:center">للاطلاع على جميع البيانات يرجى مسح رمز QR</div></div><div class="report-offer"><small>عرض رقم</small><br>${esc(p.offerNumber||'—')}</div></div>`}
-function reportFoot(s,p,page){return `<div class="report-foot"><span>${icons.phone} ${esc(s.phone1)} &nbsp;&nbsp; ${esc(s.phone2)}</span><span>${icons.mail} ${esc(s.email)}</span><span>${icons.map} ${esc(s.address)}</span><span>${esc(s.company)}</span><span>صفحة ${page}</span></div>`}
-function reportPage1(p,s,imgs){return `<section class="report-page">${reportHeader(p,s)}<div class="hero-row"><img class="report-hero" src="${imgs[0]?.data||''}"><div class="report-card"><div class="bar">معلومات العقار الأساسية</div><div class="report-grid">${rItem('نوع العقار',p.type)}${rItem('حالة العقار',p.status)}${rItem('المدينة',p.city)}${rItem('الحي',p.district)}${rItem('المساحة',p.area,'م²')}${rItem('الواجهة',p.frontage)}${rItem('عرض الشارع',p.streetWidth,'م')}${rItem('رقم القطعة',p.plotNumber)}${rItem('رقم المخطط',p.planNumber)}</div></div></div><div class="report-card"><div class="bar">الحدود والأطوال</div><table class="table"><tr><th>الاتجاه</th><th>الحدود حسب البيانات</th><th>الطول</th></tr>${boundsRows(p)}</table></div><div class="hero-row"><div class="report-card"><div class="bar">تفاصيل العقار</div><table class="table"><tr><td>الطول</td><td>${val(p.length,'م')}</td></tr><tr><td>العرض</td><td>${val(p.width,'م')}</td></tr><tr><td>الغرف</td><td>${val(p.rooms)}</td></tr><tr><td>دورات المياه</td><td>${val(p.bathrooms)}</td></tr><tr><td>مواقف السيارات</td><td>${val(p.parking)}</td></tr><tr><td>التصنيف</td><td>${val(p.category)}</td></tr></table></div><div><div class="report-card"><div class="bar">وصف العقار</div><p style="padding:14px;line-height:1.9">${esc(p.description||'—')}</p></div><div class="report-card"><div class="bar">الخدمات المتوفرة بالقرب من العقار</div><div class="services">${(p.services||[]).map(x=>`<div class="service">✓<br>${esc(x)}</div>`).join('')||'<div class="service">—</div>'}</div></div></div></div><div class="report-card"><div class="bar">الموقع</div><div style="padding:12px;display:flex;justify-content:space-between;align-items:center"><a href="${mapHref(p.locationUrl)}">فتح الموقع على الخرائط</a>${qrBox('موقع العقار')}</div></div>${reportFoot(s,p,1)}</section>`}
-function rItem(k,v,u=''){return `<div class="report-item"><b>${k}</b>${val(v,u)}</div>`}
-function reportGallery(p,s,g,page,total){return `<section class="report-page">${reportHeader(p,s)}<div class="report-card"><div class="bar">صور العقار</div><div class="report-gallery" style="padding:10px">${g.map(im=>`<img src="${im.data}">`).join('')}</div></div>${reportFoot(s,p,page)}</section>`}
-if('serviceWorker'in navigator)navigator.serviceWorker.register('./sw.js').catch(()=>{});render();
+const STORAGE_KEY = "aqar_properties_v1";
+
+let properties = JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
+let editingId = null;
+let currentImages = [];
+let view = "home";
+
+const $ = (id) => document.getElementById(id);
+
+function saveDB() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(properties));
+}
+
+function uid() {
+  return Date.now().toString();
+}
+
+function val(id) {
+  return $(id)?.value?.trim() || "";
+}
+
+function setApp(html) {
+  document.body.innerHTML = `<div id="app">${html}</div>`;
+}
+
+function icon(name) {
+  const icons = {
+    add: "＋",
+    edit: "✎",
+    del: "🗑",
+    archive: "▣",
+    save: "💾",
+    back: "‹",
+    image: "▧",
+    map: "⌖",
+    phone: "☎",
+    pdf: "⇪",
+    search: "⌕"
+  };
+  return icons[name] || "•";
+}
+
+function renderHome() {
+  view = "home";
+  const types = [...new Set(properties.filter(p => !p.archived && p.type).map(p => p.type))];
+
+  setApp(`
+    <header class="topbar">
+      <button onclick="renderSettings()">⚙</button>
+      <h1>إدارة العقارات</h1>
+      <button onclick="renderForm()">${icon("add")} إضافة عقار</button>
+    </header>
+
+    <div class="searchBox">
+      <input id="searchAll" placeholder="بحث شامل في كل التفاصيل..." oninput="renderList()" />
+      <input id="searchOffer" placeholder="بحث برقم العرض فقط" oninput="renderList()" />
+    </div>
+
+    <div class="filters">
+      <button onclick="filterType('')">الكل</button>
+      ${types.map(t => `<button onclick="filterType('${t}')">${t}</button>`).join("")}
+      <button onclick="renderArchive()">الأرشيف</button>
+    </div>
+
+    <div id="list"></div>
+  `);
+
+  window.activeType = "";
+  renderList();
+}
+
+function filterType(type) {
+  window.activeType = type;
+  renderList();
+}
+
+function renderList() {
+  const q = $("searchAll")?.value?.toLowerCase() || "";
+  const offer = $("searchOffer")?.value || "";
+
+  let list = properties.filter(p => !p.archived);
+
+  if (window.activeType) list = list.filter(p => p.type === window.activeType);
+  if (offer) list = list.filter(p => String(p.offerNo || "").includes(offer));
+
+  if (q) {
+    list = list.filter(p => JSON.stringify(p).toLowerCase().includes(q));
+  }
+
+  $("list").innerHTML = list.map(cardHTML).join("") || `<p class="empty">لا توجد عقارات</p>`;
+}
+
+function cardHTML(p) {
+  return `
+    <div class="propertyCard">
+      <div class="thumb">
+        ${p.images?.[0] ? `<img src="${p.images[0]}">` : `<div class="noImg">لا توجد صورة</div>`}
+      </div>
+      <div class="cardInfo">
+        <b>${p.title || "عقار بدون اسم"}</b>
+        <small>رقم العرض: ${p.offerNo || p.id}</small>
+        <small>${p.city || ""} ${p.district || ""}</small>
+        <small>${p.type || ""} - ${p.category || ""}</small>
+        <small>المساحة: ${p.area || "-"} م²</small>
+      </div>
+      <div class="cardActions">
+        <button onclick="renderDetails('${p.id}')">عرض</button>
+        <button onclick="renderForm('${p.id}')">${icon("edit")}</button>
+        <button onclick="archiveProperty('${p.id}')">${icon("archive")}</button>
+        <button onclick="deleteProperty('${p.id}')">${icon("del")}</button>
+      </div>
+    </div>
+  `;
+}
+
+function renderForm(id = null) {
+  editingId = id;
+  const p = id ? properties.find(x => x.id === id) : {};
+  currentImages = p?.images ? [...p.images] : [];
+
+  setApp(`
+    <header class="topbar">
+      <button onclick="renderHome()">${icon("back")}</button>
+      <h1>${id ? "تعديل عقار" : "إضافة عقار"}</h1>
+    </header>
+
+    <section class="formSec">
+      <h2>الصور</h2>
+      <input type="file" id="imgInput" multiple accept="image/*" onchange="loadImages(event)">
+      <div id="imgPreview" class="imgPreview"></div>
+    </section>
+
+    <section class="formSec">
+      <h2>البيانات العامة</h2>
+      <input id="title" placeholder="اسم العقار" value="${p?.title || ""}">
+      <input id="offerNo" placeholder="رقم العرض" value="${p?.offerNo || ""}">
+      <input id="type" placeholder="نوع العقار: فيلا، أرض، محل..." value="${p?.type || ""}">
+      <input id="category" placeholder="التصنيف: سكني، تجاري..." value="${p?.category || ""}">
+      <input id="status" placeholder="الحالة" value="${p?.status || ""}">
+      <input id="city" placeholder="المدينة" value="${p?.city || ""}">
+      <input id="district" placeholder="الحي" value="${p?.district || ""}">
+      <input id="street" placeholder="الشارع" value="${p?.street || ""}">
+      <input id="mapUrl" placeholder="رابط الموقع أو الإحداثيات" value="${p?.mapUrl || ""}">
+    </section>
+
+    <section class="formSec">
+      <h2>بيانات العقار</h2>
+      <input id="area" placeholder="المساحة" value="${p?.area || ""}">
+      <input id="length" placeholder="الطول" value="${p?.length || ""}">
+      <input id="width" placeholder="العرض" value="${p?.width || ""}">
+      <input id="streetWidth" placeholder="عرض الشارع" value="${p?.streetWidth || ""}">
+      <input id="frontage" placeholder="واجهة العقار" value="${p?.frontage || ""}">
+      <input id="planNo" placeholder="رقم المخطط" value="${p?.planNo || ""}">
+      <input id="plotNo" placeholder="رقم القطعة" value="${p?.plotNo || ""}">
+      <input id="rooms" placeholder="عدد الغرف" value="${p?.rooms || ""}">
+      <input id="baths" placeholder="دورات المياه" value="${p?.baths || ""}">
+      <input id="parking" placeholder="مواقف السيارات" value="${p?.parking || ""}">
+    </section>
+
+    <section class="formSec">
+      <h2>الحدود والأطوال</h2>
+      <input id="northBound" placeholder="الحد الشمالي" value="${p?.northBound || ""}">
+      <input id="northLength" placeholder="طول الشمال" value="${p?.northLength || ""}">
+      <input id="southBound" placeholder="الحد الجنوبي" value="${p?.southBound || ""}">
+      <input id="southLength" placeholder="طول الجنوب" value="${p?.southLength || ""}">
+      <input id="eastBound" placeholder="الحد الشرقي" value="${p?.eastBound || ""}">
+      <input id="eastLength" placeholder="طول الشرق" value="${p?.eastLength || ""}">
+      <input id="westBound" placeholder="الحد الغربي" value="${p?.westBound || ""}">
+      <input id="westLength" placeholder="طول الغرب" value="${p?.westLength || ""}">
+    </section>
+
+    <section class="formSec">
+      <h2>الوصف والخدمات</h2>
+      <textarea id="description" placeholder="وصف العقار">${p?.description || ""}</textarea>
+      <textarea id="services" placeholder="الخدمات، كل خدمة في سطر">${(p?.services || []).join("\n")}</textarea>
+    </section>
+
+    <section class="formSec private">
+      <h2>معلومات داخلية لا تظهر في PDF</h2>
+      <input id="ownerName" placeholder="اسم المالك" value="${p?.ownerName || ""}">
+      <input id="ownerPhone" placeholder="رقم المالك" value="${p?.ownerPhone || ""}">
+      <input id="brokerName" placeholder="اسم الوسيط" value="${p?.brokerName || ""}">
+      <input id="brokerPhone" placeholder="رقم الوسيط" value="${p?.brokerPhone || ""}">
+      <input id="brokerCount" placeholder="عدد الوسطاء" value="${p?.brokerCount || ""}">
+      <input id="commission" placeholder="السعي: نسبة أو مبلغ" value="${p?.commission || ""}">
+      <input id="price" placeholder="السعر" value="${p?.price || ""}">
+      <input id="lastBid" placeholder="آخر سومة" value="${p?.lastBid || ""}">
+      <textarea id="privateNotes" placeholder="ملاحظات خاصة">${p?.privateNotes || ""}</textarea>
+    </section>
+
+    <div class="bottomActions">
+      <button onclick="saveProperty(false)">${icon("save")} حفظ العقار</button>
+      <button onclick="saveProperty(true)">حفظ وإضافة جديد</button>
+      <button onclick="previewProperty()">معاينة</button>
+    </div>
+  `);
+
+  renderImgPreview();
+}
+
+function collectForm() {
+  return {
+    id: editingId || uid(),
+    offerNo: val("offerNo") || editingId || uid(),
+    title: val("title"),
+    type: val("type"),
+    category: val("category"),
+    status: val("status"),
+    city: val("city"),
+    district: val("district"),
+    street: val("street"),
+    mapUrl: val("mapUrl"),
+
+    area: val("area"),
+    length: val("length"),
+    width: val("width"),
+    streetWidth: val("streetWidth"),
+    frontage: val("frontage"),
+    planNo: val("planNo"),
+    plotNo: val("plotNo"),
+    rooms: val("rooms"),
+    baths: val("baths"),
+    parking: val("parking"),
+
+    northBound: val("northBound"),
+    northLength: val("northLength"),
+    southBound: val("southBound"),
+    southLength: val("southLength"),
+    eastBound: val("eastBound"),
+    eastLength: val("eastLength"),
+    westBound: val("westBound"),
+    westLength: val("westLength"),
+
+    description: val("description"),
+    services: val("services").split("\n").map(x => x.trim()).filter(Boolean),
+
+    ownerName: val("ownerName"),
+    ownerPhone: val("ownerPhone"),
+    brokerName: val("brokerName"),
+    brokerPhone: val("brokerPhone"),
+    brokerCount: val("brokerCount"),
+    commission: val("commission"),
+    price: val("price"),
+    lastBid: val("lastBid"),
+    privateNotes: val("privateNotes"),
+
+    images: currentImages,
+    archived: false,
+    updatedAt: new Date().toLocaleString("ar-SA")
+  };
+}
+
+function saveProperty(addNew = false) {
+  const data = collectForm();
+
+  if (editingId) {
+    properties = properties.map(p => p.id === editingId ? { ...p, ...data } : p);
+  } else {
+    properties.push(data);
+  }
+
+  saveDB();
+  alert("تم حفظ العقار بنجاح");
+
+  if (addNew) {
+    editingId = null;
+    currentImages = [];
+    renderForm();
+  } else {
+    renderDetails(data.id);
+  }
+}
+
+function loadImages(e) {
+  const files = Array.from(e.target.files || []);
+  if (!files.length) return;
+
+  let loaded = 0;
+
+  files.forEach(file => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      currentImages.push(reader.result);
+      loaded++;
+      if (loaded === files.length) renderImgPreview();
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+function renderImgPreview() {
+  const box = $("imgPreview");
+  if (!box) return;
+
+  box.innerHTML = currentImages.map((src, i) => `
+    <div class="imgItem">
+      <img src="${src}">
+      <button onclick="removeImage(${i})">×</button>
+    </div>
+  `).join("");
+}
+
+function removeImage(i) {
+  currentImages.splice(i, 1);
+  renderImgPreview();
+}
+
+function renderDetails(id) {
+  const p = properties.find(x => x.id === id);
+  if (!p) return renderHome();
+
+  setApp(`
+    <header class="topbar">
+      <button onclick="renderHome()">${icon("back")}</button>
+      <h1>عرض رقم ${p.offerNo || p.id}</h1>
+    </header>
+
+    <section class="details">
+      <div class="mainImg">
+        ${p.images?.[0] ? `<img src="${p.images[0]}">` : `<div class="noImg">لا توجد صورة</div>`}
+      </div>
+
+      <h2>${p.title || "عقار بدون اسم"}</h2>
+      <p>${p.city || ""} - ${p.district || ""}</p>
+
+      <div class="grid">
+        ${info("نوع العقار", p.type)}
+        ${info("التصنيف", p.category)}
+        ${info("الحالة", p.status)}
+        ${info("المساحة", p.area)}
+        ${info("الواجهة", p.frontage)}
+        ${info("عرض الشارع", p.streetWidth)}
+        ${info("رقم المخطط", p.planNo)}
+        ${info("رقم القطعة", p.plotNo)}
+      </div>
+
+      <h3>الوصف</h3>
+      <p>${p.description || "-"}</p>
+
+      <h3>الخدمات</h3>
+      <div class="services">
+        ${(p.services || []).map(s => `<span>✓ ${s}</span>`).join("") || "-"}
+      </div>
+
+      <h3>معلومات داخلية لا تظهر في PDF</h3>
+      <div class="grid private">
+        ${info("المالك", p.ownerName)}
+        ${info("رقم المالك", phoneLink(p.ownerPhone))}
+        ${info("الوسيط", p.brokerName)}
+        ${info("رقم الوسيط", phoneLink(p.brokerPhone))}
+        ${info("عدد الوسطاء", p.brokerCount)}
+        ${info("السعي", p.commission)}
+        ${info("السعر", p.price)}
+        ${info("آخر سومة", p.lastBid)}
+        ${info("ملاحظات", p.privateNotes)}
+      </div>
+
+      <div class="bottomActions">
+        <button onclick="renderForm('${p.id}')">${icon("edit")} تعديل</button>
+        <button onclick="printPDF('${p.id}')">${icon("pdf")} مشاركة PDF</button>
+        <button onclick="archiveProperty('${p.id}')">${icon("archive")} أرشفة</button>
+        <button onclick="deleteProperty('${p.id}')">${icon("del")} حذف</button>
+      </div>
+    </section>
+  `);
+}
+
+function info(label, value) {
+  return `<div class="infoBox"><small>${label}</small><b>${value || "-"}</b></div>`;
+}
+
+function phoneLink(phone) {
+  return phone ? `<a href="tel:${phone}">${phone}</a>` : "-";
+}
+
+function archiveProperty(id) {
+  properties = properties.map(p => p.id === id ? { ...p, archived: true } : p);
+  saveDB();
+  renderHome();
+}
+
+function unarchiveProperty(id) {
+  properties = properties.map(p => p.id === id ? { ...p, archived: false } : p);
+  saveDB();
+  renderArchive();
+}
+
+function deleteProperty(id) {
+  if (!confirm("هل تريد حذف العقار؟")) return;
+  properties = properties.filter(p => p.id !== id);
+  saveDB();
+  renderHome();
+}
+
+function renderArchive() {
+  setApp(`
+    <header class="topbar">
+      <button onclick="renderHome()">${icon("back")}</button>
+      <h1>الأرشيف</h1>
+    </header>
+    <div class="list">
+      ${properties.filter(p => p.archived).map(p => `
+        <div class="propertyCard archived">
+          <div class="thumb">${p.images?.[0] ? `<img src="${p.images[0]}">` : ""}</div>
+          <div class="cardInfo">
+            <b>${p.title || "عقار بدون اسم"}</b>
+            <small>رقم العرض: ${p.offerNo || p.id}</small>
+          </div>
+          <button onclick="unarchiveProperty('${p.id}')">نقل إلى العام</button>
+        </div>
+      `).join("") || `<p class="empty">الأرشيف فارغ</p>`}
+    </div>
+  `);
+}
+
+function previewProperty() {
+  const temp = collectForm();
+  openPDFWindow(temp, true);
+}
+
+function printPDF(id) {
+  const p = properties.find(x => x.id === id);
+  if (!p) return;
+  openPDFWindow(p, false);
+}
+
+function mapHref(url) {
+  if (!url) return "#";
+  return url.startsWith("http") ? url : `https://maps.google.com/?q=${encodeURIComponent(url)}`;
+}
+
+function openPDFWindow(p) {
+  const imgs = p.images || [];
+
+  const html = `
+  <html dir="rtl" lang="ar">
+  <head>
+    <meta charset="UTF-8">
+    <title>تقرير عقاري</title>
+    <style>
+      body{font-family:Arial,Tahoma,sans-serif;margin:0;background:#fff;color:#173b35}
+      .page{width:210mm;min-height:297mm;padding:12mm;box-sizing:border-box}
+      .head{display:flex;align-items:center;justify-content:space-between}
+      .logo{height:70px}
+      h1{color:#005b46;font-size:34px;margin:0}
+      .badge{background:#005b46;color:white;padding:18px;border-radius:10px;font-size:28px}
+      .bar{background:#005b46;color:white;padding:8px;border-radius:6px;text-align:center;font-weight:bold;margin-top:14px}
+      .grid{display:grid;grid-template-columns:repeat(3,1fr);border:1px solid #ccd8d3;margin-top:8px}
+      .cell{padding:12px;border:1px solid #ccd8d3;text-align:center}
+      .cell small{display:block;color:#557}
+      .hero img{width:100%;height:270px;object-fit:cover;border-radius:10px;margin-top:14px}
+      table{width:100%;border-collapse:collapse;margin-top:8px}
+      th{background:#005b46;color:white}
+      td,th{border:1px solid #ccd8d3;padding:8px;text-align:center}
+      .services{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:8px}
+      .services div{border:1px solid #ccd8d3;padding:12px;text-align:center;border-radius:6px}
+      .gallery{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
+      .gallery img{width:100%;height:210px;object-fit:cover;border-radius:8px}
+      footer{position:fixed;bottom:0;left:0;right:0;background:#005b46;color:white;padding:14px 30px;display:flex;justify-content:space-around}
+      a{color:#005b46;text-decoration:none}
+      @media print{button{display:none}.page{page-break-after:always}}
+    </style>
+  </head>
+  <body>
+    <div class="page">
+      <div class="head">
+        <div class="badge">عرض رقم<br>${p.offerNo || p.id}</div>
+        <div><h1>تقرير عقاري</h1><p>مؤسسة رواد الأفق للاستثمار</p></div>
+        <img class="logo" src="logo.jpeg">
+      </div>
+
+      <div class="hero">${imgs[0] ? `<img src="${imgs[0]}">` : ""}</div>
+
+      <div class="bar">معلومات العقار الأساسية</div>
+      <div class="grid">
+        ${pdfCell("نوع العقار", p.type)}
+        ${pdfCell("التصنيف", p.category)}
+        ${pdfCell("الحالة", p.status)}
+        ${pdfCell("المدينة", p.city)}
+        ${pdfCell("الحي", p.district)}
+        ${pdfCell("المساحة", p.area)}
+        ${pdfCell("الواجهة", p.frontage)}
+        ${pdfCell("عرض الشارع", p.streetWidth)}
+        ${pdfCell("رقم القطعة", p.plotNo)}
+      </div>
+
+      <div class="bar">الحدود والأطوال</div>
+      <table>
+        <tr><th>الاتجاه</th><th>الحد</th><th>الطول</th></tr>
+        <tr><td>الشمال</td><td>${p.northBound || "-"}</td><td>${p.northLength || "-"}</td></tr>
+        <tr><td>الجنوب</td><td>${p.southBound || "-"}</td><td>${p.southLength || "-"}</td></tr>
+        <tr><td>الشرق</td><td>${p.eastBound || "-"}</td><td>${p.eastLength || "-"}</td></tr>
+        <tr><td>الغرب</td><td>${p.westBound || "-"}</td><td>${p.westLength || "-"}</td></tr>
+      </table>
+
+      <div class="bar">وصف العقار</div>
+      <p>${p.description || "-"}</p>
+
+      <div class="bar">الخدمات المتوفرة</div>
+      <div class="services">${(p.services || []).map(s => `<div>✓ ${s}</div>`).join("") || "-"}</div>
+
+      ${p.mapUrl ? `<p><a href="${mapHref(p.mapUrl)}">فتح الموقع في الخرائط</a></p>` : ""}
+    </div>
+
+    <div class="page">
+      <div class="head">
+        <div class="badge">عرض ${p.offerNo || p.id}</div>
+        <h1>صور العقار</h1>
+        <img class="logo" src="logo.jpeg">
+      </div>
+      <div class="gallery">
+        ${imgs.map(src => `<img src="${src}">`).join("")}
+      </div>
+    </div>
+
+    <footer>
+      <span>0552209226</span>
+      <span>0500277257</span>
+      <span>rwadalafq@gmail.com</span>
+      <span>طريق المطار</span>
+      <span>مؤسسة رواد الأفق للاستثمار</span>
+    </footer>
+
+    <script>setTimeout(()=>window.print(),500)</script>
+  </body>
+  </html>`;
+
+  const w = window.open("", "_blank");
+  w.document.write(html);
+  w.document.close();
+}
+
+function pdfCell(label, value) {
+  return `<div class="cell"><small>${label}</small><b>${value || "-"}</b></div>`;
+}
+
+function renderSettings() {
+  alert("الإعدادات والنسخ الاحتياطي نضيفها بعد تثبيت الحفظ بالكامل.");
+}
+
+renderHome();
