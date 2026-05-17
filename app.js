@@ -10,15 +10,15 @@ let currentView = 'active';
 let typeFilter = '';
 
 const DEFAULT_SETTINGS = {
-  company:'مؤسسة رواد الأفق للاستثمار',
-  phone1:'0552209226',
-  phone2:'0500277257',
-  email:'rwadalafq@gmail.com',
-  address:'طريق المطار',
-  logo:'logo.jpeg'
+  company: 'مؤسسة رواد الأفق للاستثمار',
+  phone1: '0552209226',
+  phone2: '0500277257',
+  email: 'rwadalafq@gmail.com',
+  address: 'طريق المطار',
+  logo: 'logo.jpeg'
 };
 
-settings = {...DEFAULT_SETTINGS, ...settings};
+settings = { ...DEFAULT_SETTINGS, ...settings };
 
 const $ = id => document.getElementById(id);
 const app = () => $('app');
@@ -36,13 +36,12 @@ function uid(){
 }
 
 function esc(v=''){
-  return String(v ?? '')
-    .replace(/[&<>"]/g, s => ({
-      '&':'&amp;',
-      '<':'&lt;',
-      '>':'&gt;',
-      '"':'&quot;'
-    }[s]));
+  return String(v ?? '').replace(/[&<>"]/g, s => ({
+    '&':'&amp;',
+    '<':'&lt;',
+    '>':'&gt;',
+    '"':'&quot;'
+  }[s]));
 }
 
 function val(id){
@@ -50,22 +49,15 @@ function val(id){
 }
 
 function toast(msg){
-
-  const d=document.createElement('div');
-
-  d.className='toast';
-
-  d.textContent=msg;
-
+  const d = document.createElement('div');
+  d.className = 'toast';
+  d.textContent = msg;
   document.body.appendChild(d);
-
   setTimeout(()=>d.remove(),1800);
-
 }
 
 function ico(name){
-
-  const m={
+  const m = {
     home:'⌂',
     map:'⌖',
     area:'⛶',
@@ -94,10 +86,115 @@ function ico(name){
     add:'＋'
   };
 
-  return `<span class="ico">${m[name]||'•'}</span>`;
+  return `<span class="ico">${m[name] || '•'}</span>`;
+}
+
+function injectPatchStyles(){
+  if(document.getElementById('aqar-patch-style')) return;
+
+  const style = document.createElement('style');
+  style.id = 'aqar-patch-style';
+
+  style.textContent = `
+    .backBtn{
+      min-width:74px;
+      min-height:40px;
+      font-weight:700;
+    }
+
+    .offerFixedBox{
+      background:#004d3d;
+      color:#fff;
+      border-radius:16px;
+      padding:14px;
+      margin:14px;
+      text-align:center;
+      box-shadow:0 6px 18px rgba(0,0,0,.12);
+    }
+
+    .offerFixedBox label{
+      display:block;
+      color:#dfeee9;
+      font-size:13px;
+      margin-bottom:6px;
+    }
+
+    .offerNumber{
+      color:#fff;
+      font-size:28px;
+      font-weight:900;
+      letter-spacing:1px;
+      user-select:none;
+      pointer-events:none;
+    }
+
+    .previewGrid{
+      display:grid;
+      grid-template-columns:repeat(3,1fr);
+      gap:8px;
+    }
+
+    .preview{
+      position:relative;
+      height:86px;
+      overflow:hidden;
+      border-radius:12px;
+      background:#eef2f1;
+      border:1px solid #d7e1dd;
+    }
+
+    .preview img{
+      width:100%;
+      height:100%;
+      object-fit:cover;
+      display:block;
+    }
+
+    .preview button{
+      position:absolute;
+      top:4px;
+      left:4px;
+      width:26px;
+      height:26px;
+      border:0;
+      border-radius:50%;
+      background:#b00020;
+      color:#fff;
+      font-weight:900;
+    }
+
+    .mainBadge{
+      position:absolute;
+      right:5px;
+      bottom:5px;
+      background:#004d3d;
+      color:#fff;
+      font-size:11px;
+      padding:3px 7px;
+      border-radius:99px;
+    }
+
+    .contactLink{
+      cursor:pointer;
+      touch-action:manipulation;
+    }
+
+    select{
+      width:100%;
+      min-height:44px;
+      border:1px solid #d7e1dd;
+      border-radius:12px;
+      padding:8px 10px;
+      background:white;
+      font:inherit;
+    }
+  `;
+
+  document.head.appendChild(style);
 }
 
 function render(html){
+  injectPatchStyles();
 
   app().innerHTML = `
     <main class="app">
@@ -106,89 +203,56 @@ function render(html){
   `;
 
   window.scrollTo(0,0);
-
 }
 
 function statusClass(s=''){
-
-  if(/تفاوض|قيد|تحت|محجوز/.test(s))
-    return 'warn';
-
-  if(/مباع|مؤجر|تأجير|بيع/.test(s))
-    return 'danger';
-
-  if(/أرشيف|مؤرشف/.test(s))
-    return 'gray';
-
+  if(/تفاوض|قيد|تحت|محجوز/.test(s)) return 'warn';
+  if(/مباع|مؤجر|تأجير|بيع/.test(s)) return 'danger';
+  if(/أرشيف|مؤرشف/.test(s)) return 'gray';
   return '';
-
 }
 
 function isArchiveStatus(s=''){
-
   return /تم التأجير|تم البيع|مؤرشف/.test(s);
-
 }
 
 function mapUrl(u){
-
-  if(!u)
-    return '#';
-
-  if(/^https?:/i.test(u))
-    return u;
-
+  if(!u) return '#';
+  if(/^https?:/i.test(u)) return u;
   return 'https://maps.google.com/?q=' + encodeURIComponent(u);
-
 }
 
 function openMap(link){
-
   if(!link){
-
-    alert('لا يوجد رابط موقع');
-
+    alert('لا يوجد رابط موقع لهذا العقار');
     return;
-
   }
 
   window.location.href = mapUrl(link);
-
 }
 
 function getTypes(){
-
   return [
     ...new Set(
       properties
-        .filter(p=>!p.archived && p.type)
-        .map(p=>p.type)
+        .filter(p => !p.archived && p.type)
+        .map(p => p.type)
     )
   ];
-
 }
 
 function nextOfferNo(){
-
   const nums = properties
     .map(p => parseInt(String(p.offerNo || '').replace(/\D/g,''),10))
     .filter(n => !isNaN(n));
 
-  return String(
-    nums.length
-      ? Math.max(...nums) + 1
-      : 1001
-  );
-
+  return String(nums.length ? Math.max(...nums) + 1 : 1001);
 }
 
 function header(title='إدارة العقارات', showBack=false){
-
   return `
     <div class="header">
-
       <div class="brand">
-
         ${
           showBack
           ? `
@@ -196,20 +260,14 @@ function header(title='إدارة العقارات', showBack=false){
               ${ico('back')} رجوع
             </button>
           `
-          : `
-            <img src="${settings.logo}" alt="logo">
-          `
+          : `<img src="${settings.logo}" alt="logo">`
         }
 
         <h1>${title}</h1>
-
       </div>
 
       <div class="topBtns noPrint">
-
-        <button onclick="renderSettings()">
-          ${ico('settings')}
-        </button>
+        <button onclick="renderSettings()">${ico('settings')}</button>
 
         ${
           !showBack
@@ -220,15 +278,11 @@ function header(title='إدارة العقارات', showBack=false){
           `
           : ''
         }
-
       </div>
-
     </div>
   `;
-
 }
 function renderHome(){
-
   editingId = null;
   selectedImages = [];
   currentView = 'active';
@@ -237,11 +291,9 @@ function renderHome(){
   const types = getTypes();
 
   render(`
-
     ${header()}
 
     <div class="searchPanel">
-
       <input
         id="qAll"
         placeholder="بحث شامل في كل التفاصيل"
@@ -255,7 +307,6 @@ function renderHome(){
       >
 
       <div class="chips">
-
         <button
           class="chip active"
           id="chip-all"
@@ -265,83 +316,48 @@ function renderHome(){
         </button>
 
         ${types.map(t=>`
-          <button
-            class="chip"
-            onclick="setTypeFilter('${esc(t)}')"
-          >
+          <button class="chip" onclick="setTypeFilter('${esc(t)}')">
             ${esc(t)}
           </button>
         `).join('')}
 
-        <button
-          class="chip"
-          onclick="renderArchive()"
-        >
-          الأرشيف
-        </button>
-
+        <button class="chip" onclick="renderArchive()">الأرشيف</button>
       </div>
-
     </div>
 
     <div id="list" class="list"></div>
-
   `);
 
   renderPropertyList();
-
 }
 
 function setTypeFilter(t){
-
   typeFilter = t;
-
   renderPropertyList();
-
 }
 
 function filteredList(archived=false){
+  const q = ($('qAll')?.value || '').toLowerCase();
+  const offer = ($('qOffer')?.value || '');
 
-  let q = ($('qAll')?.value || '').toLowerCase();
-
-  let offer = ($('qOffer')?.value || '');
-
-  let list = properties.filter(
-    p => !!p.archived === archived
-  );
+  let list = properties.filter(p => !!p.archived === archived);
 
   if(typeFilter){
-
-    list = list.filter(
-      p => p.type === typeFilter
-    );
-
+    list = list.filter(p => p.type === typeFilter);
   }
 
   if(offer){
-
-    list = list.filter(
-      p => String(p.offerNo || '').includes(offer)
-    );
-
+    list = list.filter(p => String(p.offerNo || '').includes(offer));
   }
 
   if(q){
-
-    list = list.filter(
-      p => JSON.stringify(p).toLowerCase().includes(q)
-    );
-
+    list = list.filter(p => JSON.stringify(p).toLowerCase().includes(q));
   }
 
-  return list.sort(
-    (a,b)=>(b.updatedAt||'').localeCompare(a.updatedAt||'')
-  );
-
+  return list.sort((a,b)=>(b.updatedAt||'').localeCompare(a.updatedAt||''));
 }
 
 function renderPropertyList(){
-
   const box = $('list');
 
   if(!box) return;
@@ -349,54 +365,39 @@ function renderPropertyList(){
   const list = filteredList(false);
 
   box.innerHTML =
-
     list.map(propertyCard).join('')
-
     ||
-
     '<div class="empty">لا توجد عقارات</div>';
-
 }
 
 function propertyCard(p){
-
   const st = esc(p.status || 'متاح');
 
   return `
-
     <article class="card">
-
       <div class="thumb">
-
         ${
           p.images?.[0]
           ? `<img src="${p.images[0]}">`
           : 'لا توجد صورة'
         }
 
-        <span class="status ${statusClass(st)}">
-          ${st}
-        </span>
+        <span class="status ${statusClass(st)}">${st}</span>
 
         ${
           p.archived
           ? '<div class="badgeArchive">أرشيف</div>'
           : ''
         }
-
       </div>
 
       <div class="cardInfo">
-
-        <h3>
-          ${esc(p.title || 'عقار بدون اسم')}
-        </h3>
+        <h3>${esc(p.title || 'عقار بدون اسم')}</h3>
 
         <div class="meta">
-
           <span>
             ${ico('map')}
-            ${esc([p.city,p.district].filter(Boolean).join(' - ')||'-')}
+            ${esc([p.city,p.district].filter(Boolean).join(' - ') || '-')}
           </span>
 
           <span>
@@ -413,26 +414,17 @@ function propertyCard(p){
             ${ico('front')}
             ${esc(p.frontage || '-')}
           </span>
-
         </div>
-
       </div>
 
       <div class="offer">
-
         رقم العرض
-
         <br>
-
         ${esc(p.offerNo || p.id)}
-
       </div>
 
       <div class="actions noPrint">
-
-        <button onclick="renderDetails('${p.id}')">
-          عرض
-        </button>
+        <button onclick="renderDetails('${p.id}')">عرض</button>
 
         <button onclick="renderForm('${p.id}')">
           ${ico('edit')}
@@ -458,25 +450,18 @@ function propertyCard(p){
         >
           ${ico('delete')}
         </button>
-
       </div>
-
     </article>
-
   `;
-
 }
 
 function renderArchive(){
-
-  currentView='archive';
+  currentView = 'archive';
 
   render(`
-
     ${header('الأرشيف',true)}
 
     <div class="searchPanel">
-
       <input
         id="qAll"
         placeholder="بحث شامل في الأرشيف"
@@ -488,34 +473,28 @@ function renderArchive(){
         placeholder="بحث برقم العرض فقط"
         oninput="renderArchiveList()"
       >
-
     </div>
 
     <div id="archiveList" class="list"></div>
-
   `);
 
   renderArchiveList();
-
 }
 
 function renderArchiveList(){
-
   const box = $('archiveList');
+
+  if(!box) return;
 
   const list = filteredList(true);
 
   box.innerHTML =
-
     list.map(propertyCard).join('')
-
     ||
-
     '<div class="empty">الأرشيف فارغ</div>';
-
 }
-function statusSelect(value='متاح'){
 
+function statusSelect(value='متاح'){
   const opts = [
     'متاح',
     'تحت التفاوض',
@@ -526,114 +505,93 @@ function statusSelect(value='متاح'){
   ];
 
   return `
-
     <div class="field">
-
       <label>الحالة</label>
 
       <select id="status">
-
         ${opts.map(o=>`
-
           <option
             value="${o}"
             ${o === (value || 'متاح') ? 'selected' : ''}
           >
             ${o}
           </option>
-
         `).join('')}
-
       </select>
-
     </div>
-
   `;
-
 }
 
+function formSection(title, fields){
+  return `
+    <section class="section">
+      <h2>${title}</h2>
+
+      <div class="gridForm">
+        ${fields.map(([id,label,value])=>`
+          <div class="field">
+            <label>${label}</label>
+            <input id="${id}" value="${esc(value)}">
+          </div>
+        `).join('')}
+      </div>
+    </section>
+  `;
+}
 function renderForm(id=null){
+  editingId = id;
 
-  editingId=id;
-
-  const p=id
-    ? properties.find(x=>x.id===id)
+  const p = id
+    ? properties.find(x => x.id === id)
     : {};
 
-  selectedImages = p?.images
-    ? [...p.images]
-    : [];
+  selectedImages = p?.images ? [...p.images] : [];
 
   const offerValue = p?.offerNo || nextOfferNo();
 
   render(`
-
     ${header(id ? 'تعديل عقار' : 'إضافة عقار جديد', true)}
 
     <div class="offerFixedBox">
-
       <label>رقم العرض</label>
-
-      <div class="offerNumber">
-
-        ${esc(offerValue)}
-
-      </div>
-
+      <div class="offerNumber">${esc(offerValue)}</div>
     </div>
 
     <section class="section">
-
-      <h2>
-        ${ico('image')}
-        الصور والفيديو
-      </h2>
+      <h2>${ico('image')} الصور والفيديو</h2>
 
       <div class="imageUploader">
-
         <label class="uploadBox">
-
           ＋ إضافة صور
-
           <input
             type="file"
             multiple
             accept="image/*"
             onchange="handleImages(event)"
           >
-
         </label>
 
         <label class="uploadBox">
-
           ＋ إضافة فيديو
-
           <input
             type="file"
             accept="video/*"
             onchange="handleVideo(event)"
           >
-
         </label>
-
       </div>
 
       <div id="previews" class="previewGrid"></div>
 
       <p class="smallNote">
-
-        الصور تظهر مصغرة هنا ولا تكبر داخل الصفحة
-
+        الصور تظهر مصغرة هنا ولا تكبر داخل صفحة الإدخال. الصورة الأولى تعتبر الرئيسية.
       </p>
-
     </section>
 
     <section class="section">
-
       <h2>المعلومات الأساسية</h2>
 
       <div class="gridForm">
-
         <div class="field">
           <label>اسم العقار</label>
           <input id="title" value="${esc(p?.title)}">
@@ -667,158 +625,215 @@ function renderForm(id=null){
         </div>
 
         <div class="field">
-          <label>رابط الموقع</label>
+          <label>رابط الموقع أو الإحداثيات</label>
           <input id="mapLink" value="${esc(p?.mapLink)}">
         </div>
-
       </div>
+    </section>
 
+    ${formSection('بيانات الأرض / العقار',[
+      ['area','المساحة م²',p?.area],
+      ['length','الطول',p?.length],
+      ['width','العرض',p?.width],
+      ['streetWidth','عرض الشارع',p?.streetWidth],
+      ['frontage','واجهة العقار',p?.frontage],
+      ['planNo','رقم المخطط',p?.planNo],
+      ['plotNo','رقم القطعة',p?.plotNo],
+      ['rooms','عدد الغرف',p?.rooms],
+      ['baths','دورات المياه',p?.baths],
+      ['parking','مواقف السيارات',p?.parking]
+    ])}
+
+    <section class="section">
+      <h2>${ico('front')} الحدود والأطوال</h2>
+
+      <div class="gridForm">
+        <div class="field">
+          <label>الشمال يحده</label>
+          <input id="northBound" value="${esc(p?.northBound)}">
+        </div>
+
+        <div class="field">
+          <label>طول الشمال</label>
+          <input id="northLength" value="${esc(p?.northLength)}">
+        </div>
+
+        <div class="field">
+          <label>الجنوب يحده</label>
+          <input id="southBound" value="${esc(p?.southBound)}">
+        </div>
+
+        <div class="field">
+          <label>طول الجنوب</label>
+          <input id="southLength" value="${esc(p?.southLength)}">
+        </div>
+
+        <div class="field">
+          <label>الشرق يحده</label>
+          <input id="eastBound" value="${esc(p?.eastBound)}">
+        </div>
+
+        <div class="field">
+          <label>طول الشرق</label>
+          <input id="eastLength" value="${esc(p?.eastLength)}">
+        </div>
+
+        <div class="field">
+          <label>الغرب يحده</label>
+          <input id="westBound" value="${esc(p?.westBound)}">
+        </div>
+
+        <div class="field">
+          <label>طول الغرب</label>
+          <input id="westLength" value="${esc(p?.westLength)}">
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2>${ico('service')} الوصف والخدمات</h2>
+
+      <div class="gridForm">
+        <div class="field">
+          <label>وصف العقار</label>
+          <textarea id="description">${esc(p?.description)}</textarea>
+        </div>
+
+        <div class="field">
+          <label>الخدمات المتوفرة - كل خدمة في سطر</label>
+          <textarea id="services">${esc((p?.services || []).join('\n'))}</textarea>
+        </div>
+      </div>
+    </section>
+
+    <section class="section private">
+      <h2>${ico('owner')} معلومات داخلية لا تظهر في PDF المشاركة</h2>
+
+      <div class="gridForm">
+        <div class="field">
+          <label>اسم المالك</label>
+          <input id="ownerName" value="${esc(p?.ownerName)}">
+        </div>
+
+        <div class="field">
+          <label>رقم المالك</label>
+          <input id="ownerPhone" value="${esc(p?.ownerPhone)}">
+        </div>
+
+        <div class="field">
+          <label>اسم الوسيط</label>
+          <input id="brokerName" value="${esc(p?.brokerName)}">
+        </div>
+
+        <div class="field">
+          <label>رقم الوسيط المباشر</label>
+          <input id="brokerPhone" value="${esc(p?.brokerPhone)}">
+        </div>
+
+        <div class="field">
+          <label>عدد الوسطاء</label>
+          <input id="brokerCount" value="${esc(p?.brokerCount)}">
+        </div>
+
+        <div class="field">
+          <label>السعي - نسبة أو مبلغ</label>
+          <input id="commission" value="${esc(p?.commission)}">
+        </div>
+
+        <div class="field">
+          <label>السعر</label>
+          <input id="price" value="${esc(p?.price)}">
+        </div>
+
+        <div class="field">
+          <label>آخر سومة</label>
+          <input id="lastBid" value="${esc(p?.lastBid)}">
+        </div>
+
+        <div class="field">
+          <label>ملاحظات خاصة</label>
+          <textarea id="privateNotes">${esc(p?.privateNotes)}</textarea>
+        </div>
+      </div>
     </section>
 
     <div class="fixedBar noPrint">
-
       <button
         class="primary"
-        onclick="saveProperty('details')"
+        onclick="saveProperty('home')"
       >
-        ${ico('save')}
-        حفظ العقار
+        ${ico('save')} حفظ العقار
       </button>
 
       <button onclick="saveProperty('new')">
-
-        ${ico('add')}
-        حفظ وإضافة جديد
-
+        ${ico('add')} حفظ وإضافة جديد
       </button>
 
       <button onclick="previewProperty()">
-
         معاينة
-
       </button>
-
     </div>
-
   `);
 
   renderPreviews();
-
 }
 
 function handleImages(e){
-
-  const files=[...e.target.files];
+  const files = [...e.target.files];
 
   if(!files.length) return;
 
-  let done=0;
+  let done = 0;
 
   files.forEach(file=>{
+    const r = new FileReader();
 
-    const r=new FileReader();
-
-    r.onload=()=>{
-
+    r.onload = ()=>{
       selectedImages.push(r.result);
-
       done++;
 
-      if(done===files.length){
-
+      if(done === files.length){
         renderPreviews();
-
       }
-
     };
 
     r.readAsDataURL(file);
-
   });
 
-  e.target.value='';
-
+  e.target.value = '';
 }
 
 function handleVideo(e){
-
-  const file=e.target.files[0];
+  const file = e.target.files[0];
 
   if(!file) return;
 
-  toast('الفيديو سيتم دعمه لاحقًا');
+  toast('تم اختيار فيديو. سيتم دعم حفظ الفيديو في النسخة الموسعة، والصور تعمل الآن.');
 
-  e.target.value='';
-
+  e.target.value = '';
 }
 
 function renderPreviews(){
-
-  const box=$('previews');
+  const box = $('previews');
 
   if(!box) return;
 
   box.innerHTML = selectedImages.map((src,i)=>`
-
     <div class="preview">
-
       <img src="${src}">
 
-      <button onclick="removeImage(${i})">
-        ×
-      </button>
+      <button onclick="removeImage(${i})">×</button>
 
-      ${
-        i===0
-        ? '<span class="mainBadge">رئيسية</span>'
-        : ''
-      }
-
+      ${i === 0 ? '<span class="mainBadge">رئيسية</span>' : ''}
     </div>
-
   `).join('');
-
 }
 
 function removeImage(i){
-
   selectedImages.splice(i,1);
-
   renderPreviews();
-
 }
-function formSection(title, fields){
-
-  return `
-
-    <section class="section">
-
-      <h2>${title}</h2>
-
-      <div class="gridForm">
-
-        ${fields.map(([id,label,value])=>`
-
-          <div class="field">
-
-            <label>${label}</label>
-
-            <input id="${id}" value="${esc(value)}">
-
-          </div>
-
-        `).join('')}
-
-      </div>
-
-    </section>
-
-  `;
-
-}
-
 function collect(){
-
   const status = val('status') || 'متاح';
 
   const offerBox = document.querySelector('.offerNumber');
@@ -828,86 +843,55 @@ function collect(){
     : nextOfferNo();
 
   return {
-
     id: editingId || uid(),
 
-    offerNo: offerNo,
+    offerNo,
 
     title: val('title'),
-
     type: val('type'),
-
     category: val('category'),
-
-    status: status,
+    status,
 
     city: val('city'),
-
     district: val('district'),
-
     street: val('street'),
-
     mapLink: val('mapLink'),
 
     area: val('area'),
-
     length: val('length'),
-
     width: val('width'),
-
     streetWidth: val('streetWidth'),
-
     frontage: val('frontage'),
-
     planNo: val('planNo'),
-
     plotNo: val('plotNo'),
-
     rooms: val('rooms'),
-
     baths: val('baths'),
-
     parking: val('parking'),
 
     northBound: val('northBound'),
-
     northLength: val('northLength'),
-
     southBound: val('southBound'),
-
     southLength: val('southLength'),
-
     eastBound: val('eastBound'),
-
     eastLength: val('eastLength'),
-
     westBound: val('westBound'),
-
     westLength: val('westLength'),
 
     description: val('description'),
 
     services: val('services')
       .split('\n')
-      .map(x=>x.trim())
+      .map(x => x.trim())
       .filter(Boolean),
 
     ownerName: val('ownerName'),
-
     ownerPhone: val('ownerPhone'),
-
     brokerName: val('brokerName'),
-
     brokerPhone: val('brokerPhone'),
-
     brokerCount: val('brokerCount'),
-
     commission: val('commission'),
-
     price: val('price'),
-
     lastBid: val('lastBid'),
-
     privateNotes: val('privateNotes'),
 
     images: selectedImages,
@@ -916,44 +900,34 @@ function collect(){
       ? true
       : (
           editingId
-          ? !!properties.find(p=>p.id===editingId)?.archived
-          : false
+            ? !!properties.find(p => p.id === editingId)?.archived
+            : false
         ),
 
     updatedAt: new Date().toISOString()
-
   };
-
 }
 
-function saveProperty(next='details'){
-
+function saveProperty(next='home'){
   try{
-
     const data = collect();
 
     if(editingId){
-
-      const old = properties.find(p=>p.id===editingId);
+      const old = properties.find(p => p.id === editingId);
 
       if(old){
-
         data.offerNo = old.offerNo;
-
       }
 
-      properties = properties.map(p=>
-        p.id===editingId
-          ? {...p,...data}
+      properties = properties.map(p =>
+        p.id === editingId
+          ? { ...p, ...data }
           : p
       );
 
     }else{
-
       properties.push(data);
-
       editingId = data.id;
-
     }
 
     saveStore();
@@ -961,99 +935,69 @@ function saveProperty(next='details'){
     toast('تم حفظ العقار بنجاح');
 
     if(next === 'new'){
-
       editingId = null;
-
       selectedImages = [];
 
       setTimeout(()=>{
-
         renderForm();
-
       },250);
 
       return;
-
     }
 
     setTimeout(()=>{
-
       renderHome();
-
     },250);
 
   }catch(err){
-
     console.error(err);
 
     if(String(err).toLowerCase().includes('quota')){
-
-      toast('تم الحفظ لكن الصور كبيرة جدًا');
-
-      renderHome();
-
+      alert(
+        'تم منع الحفظ لأن الصور كبيرة جدًا. احذف بعض الصور أو قلل حجمها ثم احفظ مرة أخرى.'
+      );
       return;
-
     }
 
-    alert('حدث خطأ أثناء الحفظ');
-
+    alert('حدث خطأ أثناء الحفظ: ' + err.message);
   }
-
 }
 
 function previewProperty(){
-
   const data = collect();
-
   openPdf(data,true);
-
 }
 
 function renderDetails(id){
-
-  const p = properties.find(x=>x.id===id);
+  const p = properties.find(x => x.id === id);
 
   if(!p) return renderHome();
 
   render(`
-
-    ${header('عرض رقم '+esc(p.offerNo||p.id),true)}
+    ${header('عرض رقم ' + esc(p.offerNo || p.id), true)}
 
     <section class="detailsHero">
-
       <div class="heroImg">
-
         ${
           p.images?.[0]
           ? `<img src="${p.images[0]}">`
           : 'لا توجد صورة'
         }
-
       </div>
 
       <div class="galleryStrip">
-
-        ${(p.images||[]).map(src=>`
-
+        ${(p.images || []).map(src => `
           <img src="${src}">
-
         `).join('')}
-
       </div>
-
     </section>
 
     <section class="titleBlock">
-
       <h2>${esc(p.title || 'عقار بدون اسم')}</h2>
 
       <p>
-
         ${ico('map')}
-
         ${esc([p.city,p.district,p.street].filter(Boolean).join(' - ') || '-')}
-
       </p>
 
       ${
@@ -1063,130 +1007,82 @@ function renderDetails(id){
             class="contactLink"
             onclick="openMap('${esc(p.mapLink)}')"
           >
-            ${ico('map')}
-            فتح الموقع في الخرائط
+            ${ico('map')} فتح الموقع في الخرائط
           </button>
         `
         : ''
       }
-
     </section>
 
     <section class="section">
-
       <h2>معلومات العقار</h2>
 
       <div class="infoGrid">
-
         ${cell('home','نوع العقار',p.type)}
-
         ${cell('home','التصنيف',p.category)}
-
         ${cell('service','الحالة',p.status)}
-
         ${cell('area','المساحة',p.area)}
-
         ${cell('front','الواجهة',p.frontage)}
-
         ${cell('street','عرض الشارع',p.streetWidth)}
-
         ${cell('plan','رقم المخطط',p.planNo)}
-
         ${cell('plot','رقم القطعة',p.plotNo)}
-
         ${cell('bed','الغرف',p.rooms)}
-
         ${cell('bath','دورات المياه',p.baths)}
-
         ${cell('car','المواقف',p.parking)}
-
       </div>
-
     </section>
 
     <section class="section">
-
       <h2>الحدود والأطوال</h2>
-
       ${boundsTable(p)}
-
     </section>
 
     <section class="section">
-
       <h2>وصف العقار</h2>
-
       <p>${esc(p.description || '-')}</p>
-
     </section>
 
     <section class="section">
-
       <h2>الخدمات المتوفرة</h2>
 
       <div class="servicesGrid">
-
         ${
-          (p.services||[]).map(s=>`
-
+          (p.services || []).map(s => `
             <div class="serviceItem">
-
               ${ico('service')}
-
               ${esc(s)}
-
             </div>
-
           `).join('') || '-'
         }
-
       </div>
-
     </section>
 
     <section class="section private">
-
       <h2>معلومات داخلية لا تظهر في PDF</h2>
 
       <div class="infoGrid">
-
         ${cell('owner','المالك',relatedLink(p.ownerName,'ownerName'))}
-
         ${cell('phone','رقم المالك',phone(p.ownerPhone))}
-
         ${cell('broker','الوسيط',relatedLink(p.brokerName,'brokerName'))}
-
         ${cell('phone','رقم الوسيط',phone(p.brokerPhone))}
-
         ${cell('broker','عدد الوسطاء',p.brokerCount)}
-
         ${cell('service','السعي',p.commission)}
-
         ${cell('service','السعر',p.price)}
-
         ${cell('service','آخر سومة',p.lastBid)}
-
         ${cell('service','ملاحظات',p.privateNotes)}
-
       </div>
-
     </section>
 
     <div class="fixedBar noPrint">
-
       <button
         class="primary"
         onclick="renderForm('${p.id}')"
       >
-        ${ico('edit')}
-        تعديل
+        ${ico('edit')} تعديل
       </button>
 
       <button onclick="openPdfById('${p.id}')">
-
-        ${ico('share')}
-        مشاركة PDF
-
+        ${ico('share')} مشاركة PDF
       </button>
 
       ${
@@ -1201,8 +1097,7 @@ function renderDetails(id){
             class="warn"
             onclick="archiveProperty('${p.id}')"
           >
-            ${ico('archive')}
-            أرشفة
+            ${ico('archive')} أرشفة
           </button>
         `
       }
@@ -1211,49 +1106,31 @@ function renderDetails(id){
         class="danger"
         onclick="deleteProperty('${p.id}')"
       >
-        ${ico('delete')}
-        حذف
+        ${ico('delete')} حذف
       </button>
-
     </div>
-
   `);
-
 }
 function cell(i,l,v){
-
   return `
-
     <div class="infoCell">
-
       ${ico(i)}
-
       <small>${l}</small>
-
       <b>${v || '-'}</b>
-
     </div>
-
   `;
-
 }
 
 function phone(v){
-
   return v
-
     ? `<a class="contactLink" href="tel:${esc(v)}">${esc(v)}</a>`
-
     : '-';
-
 }
 
 function relatedLink(name,key){
-
   if(!name) return '-';
 
   return `
-
     <a
       class="contactLink"
       href="#"
@@ -1261,31 +1138,24 @@ function relatedLink(name,key){
     >
       ${esc(name)}
     </a>
-
   `;
-
 }
 
 function showRelated(name,key){
-
   const list = properties.filter(p => p[key] === name);
 
   alert(
     `العقارات المرتبطة بـ ${name}\n\n` +
     `إجمالي العروض: ${list.length}\n` +
-    list
-      .map(p => `${p.offerNo || p.id} - ${p.title || 'عقار بدون اسم'}`)
-      .join('\n')
+    list.map(p =>
+      `${p.offerNo || p.id} - ${p.title || 'عقار بدون اسم'}`
+    ).join('\n')
   );
-
 }
 
 function boundsTable(p){
-
   return `
-
     <table class="boundTable">
-
       <tr>
         <th>الاتجاه</th>
         <th>ما يحده</th>
@@ -1315,15 +1185,11 @@ function boundsTable(p){
         <td>${esc(p.westBound || '-')}</td>
         <td>${esc(p.westLength || '-')}</td>
       </tr>
-
     </table>
-
   `;
-
 }
 
 function archiveProperty(id){
-
   if(!confirm('نقل العرض إلى الأرشيف؟')) return;
 
   properties = properties.map(p =>
@@ -1339,17 +1205,17 @@ function archiveProperty(id){
   saveStore();
 
   renderHome();
-
 }
 
 function unarchiveProperty(id){
-
   properties = properties.map(p =>
     p.id === id
       ? {
           ...p,
           archived:false,
-          status:p.status === 'مؤرشف' ? 'متاح' : p.status
+          status:p.status === 'مؤرشف'
+            ? 'متاح'
+            : p.status
         }
       : p
   );
@@ -1357,11 +1223,9 @@ function unarchiveProperty(id){
   saveStore();
 
   renderArchive();
-
 }
 
 function deleteProperty(id){
-
   if(!confirm('حذف نهائي للعرض؟')) return;
 
   properties = properties.filter(p => p.id !== id);
@@ -1369,35 +1233,230 @@ function deleteProperty(id){
   saveStore();
 
   renderHome();
-
 }
 
 function openPdfById(id){
-
   const p = properties.find(x => x.id === id);
 
   if(p) openPdf(p,false);
-
 }
 
 function pdfCell(label,value){
-
   return `
-
     <div class="pdfCell">
-
       <small>${esc(label)}</small>
-
       <b>${esc(value || '-')}</b>
+    </div>
+  `;
+}
+
+function pdfHeader(p){
+  return `
+    <div class="head">
+
+      <div class="offerBox">
+        عرض رقم
+        <br>
+        <b>${esc(p.offerNo || p.id)}</b>
+      </div>
+
+      <div class="title">
+        <h1>تقرير عقاري ${esc(p.offerNo || p.id)}</h1>
+        <p>للاطلاع على بيانات العقار ومشاركته</p>
+      </div>
+
+      <div>
+        <img class="logo" src="${settings.logo}">
+        <p style="margin:0;text-align:center;font-weight:bold">
+          ${esc(settings.company)}
+        </p>
+      </div>
 
     </div>
-
   `;
+}
 
+function pdfFooter(){
+  return `
+    <div class="foot">
+      <span>☎ ${esc(settings.phone1)}</span>
+      <span>☎ ${esc(settings.phone2)}</span>
+      <span>✉ ${esc(settings.email)}</span>
+      <span>⌖ ${esc(settings.address)}</span>
+      <span>${esc(settings.company)}</span>
+    </div>
+  `;
+}
+
+function pdfPage(p,imgs){
+  return `
+    <section class="page">
+
+      <div class="wm">رواد</div>
+
+      <div class="content">
+
+        ${pdfHeader(p)}
+
+        <div class="hero">
+
+          <div class="heroImg">
+            ${
+              imgs[0]
+              ? `<img src="${imgs[0]}">`
+              : ''
+            }
+          </div>
+
+          <div>
+
+            <div class="bar">معلومات العقار الأساسية</div>
+
+            <div class="pdfGrid">
+
+              ${pdfCell('نوع العقار',p.type)}
+              ${pdfCell('التصنيف',p.category)}
+              ${pdfCell('الحالة',p.status)}
+              ${pdfCell('المدينة',p.city)}
+              ${pdfCell('الحي',p.district)}
+              ${pdfCell('المساحة',p.area)}
+              ${pdfCell('الواجهة',p.frontage)}
+              ${pdfCell('عرض الشارع',p.streetWidth)}
+              ${pdfCell('رقم القطعة',p.plotNo)}
+
+            </div>
+
+          </div>
+
+        </div>
+
+        <div class="bar">الحدود والأطوال</div>
+
+        <table class="tbl">
+
+          <tr>
+            <th>الاتجاه</th>
+            <th>ما يحده</th>
+            <th>الطول</th>
+          </tr>
+
+          <tr>
+            <td>الشمال</td>
+            <td>${esc(p.northBound || '-')}</td>
+            <td>${esc(p.northLength || '-')}</td>
+          </tr>
+
+          <tr>
+            <td>الجنوب</td>
+            <td>${esc(p.southBound || '-')}</td>
+            <td>${esc(p.southLength || '-')}</td>
+          </tr>
+
+          <tr>
+            <td>الشرق</td>
+            <td>${esc(p.eastBound || '-')}</td>
+            <td>${esc(p.eastLength || '-')}</td>
+          </tr>
+
+          <tr>
+            <td>الغرب</td>
+            <td>${esc(p.westBound || '-')}</td>
+            <td>${esc(p.westLength || '-')}</td>
+          </tr>
+
+        </table>
+
+        <div class="two">
+
+          <div>
+
+            <div class="bar">تفاصيل العقار</div>
+
+            <div
+              class="pdfGrid"
+              style="grid-template-columns:1fr 1fr"
+            >
+
+              ${pdfCell('رقم المخطط',p.planNo)}
+              ${pdfCell('الطول',p.length)}
+              ${pdfCell('العرض',p.width)}
+              ${pdfCell('الغرف',p.rooms)}
+              ${pdfCell('دورات المياه',p.baths)}
+              ${pdfCell('المواقف',p.parking)}
+
+            </div>
+
+          </div>
+
+          <div>
+
+            <div class="bar">وصف العقار</div>
+
+            <div class="box">
+              ${esc(p.description || '-')}
+            </div>
+
+            <div class="bar">الخدمات المتوفرة</div>
+
+            <div class="services">
+
+              ${
+                (p.services || []).map(s=>`
+                  <div>✓ ${esc(s)}</div>
+                `).join('') || '<div>-</div>'
+              }
+
+            </div>
+
+            ${
+              p.mapLink
+              ? `
+                <div class="mapBox">
+                  <a
+                    href="${mapUrl(p.mapLink)}"
+                    target="_blank"
+                  >
+                    فتح الموقع في الخرائط
+                  </a>
+                </div>
+              `
+              : ''
+            }
+
+          </div>
+
+        </div>
+
+      </div>
+
+      ${pdfFooter()}
+
+    </section>
+  `;
+}
+function pdfGalleryPage(p,arr,n){
+  return `
+    <section class="page">
+      <div class="content">
+        ${pdfHeader(p)}
+
+        <div class="bar">صور العقار</div>
+
+        <div class="gallery">
+          ${
+            arr.map(src=>`
+              <img src="${src}">
+            `).join('')
+          }
+        </div>
+      </div>
+
+      ${pdfFooter()}
+    </section>
+  `;
 }
 
 function openPdf(p,preview=false){
-
   const imgs = p.images || [];
 
   const gal = imgs.slice(1).length
@@ -1407,23 +1466,20 @@ function openPdf(p,preview=false){
   const galleryPages = [];
 
   for(let i=0; i<gal.length; i+=6){
+    const chunk = gal.slice(i,i+6);
 
-    galleryPages.push(gal.slice(i,i+6));
-
+    if(chunk.length){
+      galleryPages.push(chunk);
+    }
   }
 
   const html = `<!doctype html>
-
   <html dir="rtl" lang="ar">
-
   <head>
-
     <meta charset="utf-8">
-
     <title>تقرير عقاري ${esc(p.offerNo || p.id)}</title>
 
     <style>
-
       @page{
         size:A4;
         margin:0;
@@ -1471,12 +1527,13 @@ function openPdf(p,preview=false){
       .title h1{
         margin:0;
         color:#004d3d;
-        font-size:24px;
+        font-size:22px;
       }
 
       .title p{
         margin:4px 0;
         color:#52736b;
+        font-size:12px;
       }
 
       .offerBox{
@@ -1489,7 +1546,7 @@ function openPdf(p,preview=false){
       }
 
       .offerBox b{
-        font-size:25px;
+        font-size:24px;
       }
 
       .hero{
@@ -1525,6 +1582,7 @@ function openPdf(p,preview=false){
         border:1px solid #d8e2df;
         text-align:center;
         padding:7px;
+        box-sizing:border-box;
       }
 
       .pdfCell small{
@@ -1580,6 +1638,7 @@ function openPdf(p,preview=false){
         padding:9px;
         min-height:62px;
         font-size:12px;
+        box-sizing:border-box;
       }
 
       .services{
@@ -1592,6 +1651,7 @@ function openPdf(p,preview=false){
         text-align:center;
         padding:8px;
         font-size:11px;
+        box-sizing:border-box;
       }
 
       .gallery{
@@ -1609,6 +1669,7 @@ function openPdf(p,preview=false){
         object-fit:cover;
         border-radius:8px;
         border:1px solid #d8e2df;
+        box-sizing:border-box;
       }
 
       .mapBox{
@@ -1637,6 +1698,8 @@ function openPdf(p,preview=false){
         align-items:center;
         justify-content:space-around;
         font-size:11px;
+        padding:0 8mm;
+        box-sizing:border-box;
       }
 
       .wm{
@@ -1680,17 +1743,23 @@ function openPdf(p,preview=false){
       }
 
       @media print{
-        body{background:#fff}
-        .printBtn,.closeBtn{display:none}
-        .page{margin:0}
+        body{
+          background:#fff;
+        }
+
+        .printBtn,
+        .closeBtn{
+          display:none;
+        }
+
+        .page{
+          margin:0;
+        }
       }
-
     </style>
-
   </head>
 
   <body>
-
     <button class="closeBtn" onclick="window.close()">
       إغلاق المعاينة
     </button>
@@ -1702,9 +1771,7 @@ function openPdf(p,preview=false){
     ${pdfPage(p,imgs)}
 
     ${galleryPages.map((arr,idx)=>pdfGalleryPage(p,arr,idx+1)).join('')}
-
   </body>
-
   </html>`;
 
   const w = window.open('','_blank');
@@ -1712,357 +1779,49 @@ function openPdf(p,preview=false){
   w.document.write(html);
 
   w.document.close();
-
-}
-function pdfHeader(p){
-
-  return `
-
-    <div class="head">
-
-      <div class="offerBox">
-
-        عرض رقم
-
-        <br>
-
-        <b>${esc(p.offerNo || p.id)}</b>
-
-      </div>
-
-      <div class="title">
-
-        <h1>تقرير عقاري</h1>
-
-        <p>للاطلاع على البيانات ومشاركة العرض</p>
-
-      </div>
-
-      <div>
-
-        <img class="logo" src="${settings.logo}">
-
-        <p style="margin:0;text-align:center;font-weight:bold">
-          ${esc(settings.company)}
-        </p>
-
-      </div>
-
-    </div>
-
-  `;
-
-}
-
-function pdfFooter(){
-
-  return `
-
-    <div class="foot">
-
-      <span>☎ ${esc(settings.phone1)}</span>
-
-      <span>☎ ${esc(settings.phone2)}</span>
-
-      <span>✉ ${esc(settings.email)}</span>
-
-      <span>⌖ ${esc(settings.address)}</span>
-
-      <span>${esc(settings.company)}</span>
-
-    </div>
-
-  `;
-
-}
-
-function pdfPage(p,imgs){
-
-  return `
-
-    <section class="page">
-
-      <div class="wm">رواد</div>
-
-      <div class="content">
-
-        ${pdfHeader(p)}
-
-        <div class="hero">
-
-          <div class="heroImg">
-
-            ${
-              imgs[0]
-              ? `<img src="${imgs[0]}">`
-              : ''
-            }
-
-          </div>
-
-          <div>
-
-            <div class="bar">معلومات العقار الأساسية</div>
-
-            <div class="pdfGrid">
-
-              ${pdfCell('نوع العقار',p.type)}
-
-              ${pdfCell('التصنيف',p.category)}
-
-              ${pdfCell('الحالة',p.status)}
-
-              ${pdfCell('المدينة',p.city)}
-
-              ${pdfCell('الحي',p.district)}
-
-              ${pdfCell('المساحة',p.area)}
-
-              ${pdfCell('الواجهة',p.frontage)}
-
-              ${pdfCell('عرض الشارع',p.streetWidth)}
-
-              ${pdfCell('رقم القطعة',p.plotNo)}
-
-            </div>
-
-          </div>
-
-        </div>
-
-        <div class="bar">الحدود والأطوال</div>
-
-        <table class="tbl">
-
-          <tr>
-
-            <th>الاتجاه</th>
-
-            <th>ما يحده</th>
-
-            <th>الطول</th>
-
-          </tr>
-
-          <tr>
-
-            <td>الشمال</td>
-
-            <td>${esc(p.northBound || '-')}</td>
-
-            <td>${esc(p.northLength || '-')}</td>
-
-          </tr>
-
-          <tr>
-
-            <td>الجنوب</td>
-
-            <td>${esc(p.southBound || '-')}</td>
-
-            <td>${esc(p.southLength || '-')}</td>
-
-          </tr>
-
-          <tr>
-
-            <td>الشرق</td>
-
-            <td>${esc(p.eastBound || '-')}</td>
-
-            <td>${esc(p.eastLength || '-')}</td>
-
-          </tr>
-
-          <tr>
-
-            <td>الغرب</td>
-
-            <td>${esc(p.westBound || '-')}</td>
-
-            <td>${esc(p.westLength || '-')}</td>
-
-          </tr>
-
-        </table>
-
-        <div class="two">
-
-          <div>
-
-            <div class="bar">تفاصيل العقار</div>
-
-            <div class="pdfGrid" style="grid-template-columns:1fr 1fr">
-
-              ${pdfCell('رقم المخطط',p.planNo)}
-
-              ${pdfCell('الطول',p.length)}
-
-              ${pdfCell('العرض',p.width)}
-
-              ${pdfCell('الغرف',p.rooms)}
-
-              ${pdfCell('دورات المياه',p.baths)}
-
-              ${pdfCell('المواقف',p.parking)}
-
-            </div>
-
-          </div>
-
-          <div>
-
-            <div class="bar">وصف العقار</div>
-
-            <div class="box">
-
-              ${esc(p.description || '-')}
-
-            </div>
-
-            <div class="bar">الخدمات المتوفرة</div>
-
-            <div class="services">
-
-              ${
-                (p.services || []).map(s=>`
-
-                  <div>✓ ${esc(s)}</div>
-
-                `).join('') || '<div>-</div>'
-              }
-
-            </div>
-
-            ${
-              p.mapLink
-              ? `
-                <div class="mapBox">
-
-                  <a
-                    href="${mapUrl(p.mapLink)}"
-                    target="_blank"
-                  >
-                    فتح الموقع في الخرائط
-                  </a>
-
-                </div>
-              `
-              : ''
-            }
-
-          </div>
-
-        </div>
-
-      </div>
-
-      ${pdfFooter()}
-
-    </section>
-
-  `;
-
-}
-
-function pdfGalleryPage(p,arr,n){
-
-  return `
-
-    <section class="page">
-
-      <div class="content">
-
-        ${pdfHeader(p)}
-
-        <div class="bar">صور العقار</div>
-
-        <div class="gallery">
-
-          ${
-            arr.map(src=>`
-
-              <img src="${src}">
-
-            `).join('')
-          }
-
-        </div>
-
-      </div>
-
-      ${pdfFooter()}
-
-    </section>
-
-  `;
-
 }
 
 function renderSettings(){
-
   render(`
-
     ${header('الإعدادات',true)}
 
     <section class="section">
-
       <h2>هوية المؤسسة</h2>
 
       <div class="gridForm">
-
         <div class="field">
-
           <label>اسم المؤسسة</label>
-
           <input id="setCompany" value="${esc(settings.company)}">
-
         </div>
 
         <div class="field">
-
           <label>الجوال الأول</label>
-
           <input id="setPhone1" value="${esc(settings.phone1)}">
-
         </div>
 
         <div class="field">
-
           <label>الجوال الثاني</label>
-
           <input id="setPhone2" value="${esc(settings.phone2)}">
-
         </div>
 
         <div class="field">
-
           <label>الإيميل</label>
-
           <input id="setEmail" value="${esc(settings.email)}">
-
         </div>
 
         <div class="field">
-
           <label>العنوان</label>
-
           <input id="setAddress" value="${esc(settings.address)}">
-
         </div>
 
         <div class="field">
-
           <label>رفع شعار جديد</label>
-
           <input
             type="file"
             accept="image/*"
             onchange="loadLogo(event)"
           >
-
         </div>
-
       </div>
 
       <button
@@ -2071,23 +1830,17 @@ function renderSettings(){
       >
         حفظ الإعدادات
       </button>
-
     </section>
 
     <section class="section">
-
       <h2>النسخ الاحتياطي</h2>
 
       <div class="settingsGrid">
-
         <button onclick="exportBackup()">
-
           تصدير نسخة احتياطية
-
         </button>
 
         <label class="uploadBox">
-
           استيراد نسخة احتياطية
 
           <input
@@ -2095,44 +1848,30 @@ function renderSettings(){
             accept=".json,.aqarbackup"
             onchange="importBackup(event)"
           >
-
         </label>
 
         <p class="smallNote">
-
           النسخة تحفظ العقارات والصور والشعار والإعدادات محليًا.
           لا ترفع بياناتك إلى GitHub.
-
         </p>
-
       </div>
-
     </section>
-
   `);
-
 }
 
 function saveSettingsForm(){
-
   settings.company = val('setCompany');
-
   settings.phone1 = val('setPhone1');
-
   settings.phone2 = val('setPhone2');
-
   settings.email = val('setEmail');
-
   settings.address = val('setAddress');
 
   saveSettings();
 
   toast('تم حفظ الإعدادات');
-
 }
 
 function loadLogo(e){
-
   const f = e.target.files[0];
 
   if(!f) return;
@@ -2140,21 +1879,15 @@ function loadLogo(e){
   const r = new FileReader();
 
   r.onload = ()=>{
-
     settings.logo = r.result;
-
     saveSettings();
-
     toast('تم حفظ الشعار');
-
   };
 
   r.readAsDataURL(f);
-
 }
 
 function exportBackup(){
-
   const data = {
     properties,
     settings,
@@ -2169,17 +1902,14 @@ function exportBackup(){
   const a = document.createElement('a');
 
   a.href = URL.createObjectURL(blob);
-
   a.download = 'AqarBackup.aqarbackup';
 
   a.click();
 
   URL.revokeObjectURL(a.href);
-
 }
 
 function importBackup(e){
-
   const f = e.target.files[0];
 
   if(!f) return;
@@ -2187,13 +1917,10 @@ function importBackup(e){
   const r = new FileReader();
 
   r.onload = ()=>{
-
     try{
-
       const data = JSON.parse(r.result);
 
       if(confirm('سيتم استبدال البيانات الحالية بالنسخة الاحتياطية. متابعة؟')){
-
         properties = data.properties || [];
 
         settings = {
@@ -2202,29 +1929,20 @@ function importBackup(e){
         };
 
         saveStore();
-
         saveSettings();
-
         renderHome();
-
       }
 
     }catch(err){
-
       alert('ملف النسخة غير صحيح');
-
     }
-
   };
 
   r.readAsText(f);
-
 }
 
 if('serviceWorker' in navigator){
-
   navigator.serviceWorker.register('sw.js').catch(()=>{});
-
 }
 
 renderHome();
