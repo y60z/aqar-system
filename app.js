@@ -539,7 +539,7 @@ function formSection(title, fields){
   `;
 }
 
-async function compressImage(base64, maxWidth = 1600, quality = 0.72){
+async function compressImage(base64, maxWidth = 1100, quality = 0.55){
   return new Promise((resolve)=>{
     const img = new Image();
 
@@ -827,7 +827,7 @@ async function handleImages(e){
       r.readAsDataURL(file);
     });
 
-    const compressed = await compressImage(raw);
+    const compressed = await compressImage(raw, 1100, 0.55);
     selectedImages.push(compressed);
   }
 
@@ -883,7 +883,6 @@ function collect(){
 
   return {
     id: editingId || uid(),
-
     offerNo,
 
     title: val('title'),
@@ -1301,11 +1300,9 @@ function pdfHeader(p){
         <p>للاطلاع على بيانات العقار ومشاركته</p>
       </div>
 
-      <div>
+      <div class="pdfLogoBox">
         <img class="logo" src="${settings.logo}">
-        <p style="margin:0;text-align:center;font-weight:bold">
-          ${esc(settings.company)}
-        </p>
+        <p>${esc(settings.company)}</p>
       </div>
 
     </div>
@@ -1465,6 +1462,12 @@ function pdfPage(p,imgs){
   `;
 }
 function pdfGalleryPage(p,arr,n){
+  const slots = [...arr];
+
+  while(slots.length < 6){
+    slots.push(null);
+  }
+
   return `
     <section class="page">
 
@@ -1478,10 +1481,16 @@ function pdfGalleryPage(p,arr,n){
             صور العقار - صفحة ${n}
           </div>
 
-          <div class="gallery">
+          <div class="gallery sixGallery">
             ${
-              arr.map(src=>`
-                <img src="${src}">
+              slots.map(src=>`
+                <div class="gallerySlot">
+                  ${
+                    src
+                    ? `<img src="${src}">`
+                    : `<div class="emptyPhoto"></div>`
+                  }
+                </div>
               `).join('')
             }
           </div>
@@ -1505,8 +1514,8 @@ function openPdf(p,preview=false){
 
   const galleryPages = [];
 
-  for(let i=0; i<gal.length; i+=4){
-    const chunk = gal.slice(i,i+4);
+  for(let i=0; i<gal.length; i+=6){
+    const chunk = gal.slice(i,i+6);
 
     if(chunk.length){
       galleryPages.push(chunk);
@@ -1543,6 +1552,7 @@ function openPdf(p,preview=false){
         box-sizing:border-box;
         overflow:hidden;
         page-break-after:always;
+        break-after:page;
       }
 
       .pageInner{
@@ -1550,7 +1560,7 @@ function openPdf(p,preview=false){
         top:10mm;
         right:10mm;
         left:10mm;
-        bottom:20mm;
+        bottom:18mm;
         box-sizing:border-box;
         overflow:hidden;
       }
@@ -1565,14 +1575,34 @@ function openPdf(p,preview=false){
         box-sizing:border-box;
       }
 
-      .logo{
-        width:78px;
-        max-height:64px;
+      .pdfLogoBox{
+        width:46mm;
+        display:flex;
+        flex-direction:column;
+        align-items:center;
+        justify-content:center;
+        text-align:center;
+      }
+
+      .pdfLogoBox .logo{
+        width:22mm;
+        max-height:18mm;
         object-fit:contain;
+        display:block;
+        margin:0 auto 2mm;
+      }
+
+      .pdfLogoBox p{
+        margin:0;
+        text-align:center;
+        font-weight:bold;
+        font-size:10px;
+        line-height:1.4;
       }
 
       .title{
         text-align:center;
+        flex:1;
       }
 
       .title h1{
@@ -1588,12 +1618,14 @@ function openPdf(p,preview=false){
       }
 
       .offerBox{
+        width:34mm;
         background:#004d3d;
         color:#fff;
         border-radius:8px;
-        padding:8px 14px;
+        padding:8px 10px;
         text-align:center;
         font-size:15px;
+        box-sizing:border-box;
       }
 
       .offerBox b{
@@ -1707,23 +1739,36 @@ function openPdf(p,preview=false){
         box-sizing:border-box;
       }
 
-      .gallery{
+      .sixGallery{
         display:grid;
         grid-template-columns:1fr 1fr;
-        grid-template-rows:1fr 1fr;
-        gap:10mm;
-        margin-top:12mm;
-        height:210mm;
+        grid-template-rows:repeat(3,1fr);
+        gap:8mm;
+        margin-top:8mm;
+        height:206mm;
       }
 
-      .gallery img{
+      .gallerySlot{
+        width:100%;
+        height:100%;
+        border:1px solid #d8e2df;
+        border-radius:8px;
+        overflow:hidden;
+        background:#f4f7f6;
+        box-sizing:border-box;
+      }
+
+      .gallerySlot img{
         width:100%;
         height:100%;
         object-fit:cover;
-        border-radius:8px;
-        border:1px solid #d8e2df;
-        box-sizing:border-box;
         display:block;
+      }
+
+      .emptyPhoto{
+        width:100%;
+        height:100%;
+        background:linear-gradient(135deg,#f4f7f6,#eaf0ed);
       }
 
       .mapBox{
@@ -1800,6 +1845,7 @@ function openPdf(p,preview=false){
         html,
         body{
           background:#fff;
+          width:210mm;
         }
 
         .pdfTopActions{
@@ -1809,6 +1855,7 @@ function openPdf(p,preview=false){
         .page{
           margin:0;
           page-break-after:always;
+          break-after:page;
         }
       }
     </style>
