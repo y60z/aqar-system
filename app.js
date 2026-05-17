@@ -44,6 +44,13 @@ function esc(v=''){
   }[s]));
 }
 
+function jsEsc(v=''){
+  return String(v ?? '')
+    .replace(/\\/g,'\\\\')
+    .replace(/'/g,"\\'")
+    .replace(/\n/g,' ');
+}
+
 function val(id){
   return ($(id)?.value || '').trim();
 }
@@ -217,18 +224,32 @@ function isArchiveStatus(s=''){
 }
 
 function mapUrl(u){
-  if(!u) return '#';
-  if(/^https?:/i.test(u)) return u;
-  return 'https://maps.google.com/?q=' + encodeURIComponent(u);
+  const link = String(u || '').trim();
+
+  if(!link) return '#';
+
+  if(/^https?:\/\//i.test(link)){
+    return link;
+  }
+
+  const coords = link.match(/(-?\d+(\.\d+)?)\s*,\s*(-?\d+(\.\d+)?)/);
+
+  if(coords){
+    return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(coords[0])}`;
+  }
+
+  return 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(link);
 }
 
 function openMap(link){
-  if(!link){
+  const url = mapUrl(link);
+
+  if(url === '#'){
     alert('لا يوجد رابط موقع لهذا العقار');
     return;
   }
 
-  window.location.href = mapUrl(link);
+  window.location.href = url;
 }
 
 function getTypes(){
@@ -539,7 +560,7 @@ function formSection(title, fields){
   `;
 }
 
-async function compressImage(base64, maxWidth = 1100, quality = 0.55){
+async function compressImage(base64, maxWidth = 900, quality = 0.45){
   return new Promise((resolve)=>{
     const img = new Image();
 
@@ -793,10 +814,7 @@ function renderForm(id=null){
     </section>
 
     <div class="fixedBar noPrint">
-      <button
-        class="primary"
-        onclick="saveProperty('home')"
-      >
+      <button class="primary" onclick="saveProperty('home')">
         ${ico('save')} حفظ العقار
       </button>
 
@@ -827,17 +845,11 @@ async function handleImages(e){
       r.readAsDataURL(file);
     });
 
-    const compressed = await compressImage(raw, 1100, 0.55);
+    const compressed = await compressImage(raw, 900, 0.45);
     selectedImages.push(compressed);
   }
 
   renderPreviews();
-
-  const size = estimateStorageSize();
-
-  if(size > 18){
-    toast('اقتربت مساحة التخزين من الحد الأعلى');
-  }
 
   e.target.value = '';
 }
@@ -992,7 +1004,7 @@ function saveProperty(next='home'){
 
     if(String(err).toLowerCase().includes('quota')){
       alert(
-        'الصور لا تزال كبيرة جدًا. احذف بعض الصور أو قلل عددها ثم احفظ مرة أخرى.'
+        'الصور كثيرة جدًا على مساحة التخزين الحالية. جرّب حذف بعض الصور أو استخدام نسخة احتياطية خارجية للصور.'
       );
       return;
     }
@@ -1043,7 +1055,7 @@ function renderDetails(id){
         ? `
           <button
             class="contactLink"
-            onclick="openMap('${esc(p.mapLink)}')"
+            onclick="openMap('${jsEsc(p.mapLink)}')"
           >
             ${ico('map')} فتح الموقع في الخرائط
           </button>
@@ -1172,7 +1184,7 @@ function relatedLink(name,key){
     <a
       class="contactLink"
       href="#"
-      onclick="showRelated('${esc(name)}','${key}');return false;"
+      onclick="showRelated('${jsEsc(name)}','${key}');return false;"
     >
       ${esc(name)}
     </a>
