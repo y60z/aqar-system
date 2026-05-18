@@ -222,6 +222,7 @@ function statusClass(s=''){
 function isArchiveStatus(s=''){
   return /تم التأجير|تم البيع|مؤرشف/.test(s);
 }
+
 function mapUrl(u){
   const link = String(u || '').trim();
 
@@ -483,6 +484,7 @@ function propertyCard(p){
     </article>
   `;
 }
+
 function renderArchive(){
   currentView = 'archive';
 
@@ -748,7 +750,8 @@ function renderForm(id=null){
         </div>
       </div>
     </section>
-        <section class="section">
+
+    <section class="section">
       <h2>${ico('service')} الوصف والخدمات</h2>
 
       <div class="gridForm">
@@ -1017,8 +1020,9 @@ function saveProperty(next='home'){
 
 function previewProperty(){
   const data = collect();
-  openPdf(data,true);
+  openPdf(data, true);
 }
+
 function renderDetails(id){
   const p = properties.find(x => x.id === id);
 
@@ -1286,9 +1290,131 @@ function deleteProperty(id){
 function openPdfById(id){
   const p = properties.find(x => x.id === id);
 
-  if(p) openPdf(p,false);
+  if(p) openPdf(p, false);
 }
-function pdfCell(label,value){
+
+// =============================================
+// PDF - يفتح في المتصفح مباشرة قابل للحفظ والمشاركة
+// =============================================
+
+function openPdf(p, preview=false){
+  const filename = `تقرير عقاري رقم ${p.offerNo || p.id}`;
+  const html = buildFullPageHtml(p, filename);
+  const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  window.open(url, '_blank');
+}
+
+function buildFullPageHtml(p, filename){
+  const imgs = p.images || [];
+  const gal = imgs.slice(1).length ? imgs.slice(1) : imgs;
+  const galleryPages = [];
+
+  for(let i = 0; i < gal.length; i += 6){
+    const chunk = gal.slice(i, i + 6);
+    if(chunk.length) galleryPages.push(chunk);
+  }
+
+  return `<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>${filename}</title>
+<style>
+${pdfStyle()}
+
+body{
+  margin:0;
+  padding:0;
+  background:#888;
+  font-family:Arial,Tahoma,sans-serif;
+  color:#123;
+}
+
+.pdfPages{
+  width:210mm;
+  margin:60px auto 0;
+  background:#fff;
+  box-shadow:0 4px 32px rgba(0,0,0,.35);
+}
+
+.saveBar{
+  position:fixed;
+  top:0;
+  left:0;
+  right:0;
+  height:52px;
+  background:#004d3d;
+  color:#fff;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding:0 18px;
+  z-index:9999;
+  font-family:Arial,Tahoma,sans-serif;
+  gap:12px;
+  box-shadow:0 2px 12px rgba(0,0,0,.3);
+}
+
+.saveBar .docName{
+  font-size:13px;
+  font-weight:700;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  flex:1;
+}
+
+.saveBar .hint{
+  font-size:11px;
+  opacity:.75;
+  white-space:nowrap;
+}
+
+.saveBar button{
+  background:#fff;
+  color:#004d3d;
+  border:none;
+  border-radius:8px;
+  padding:9px 20px;
+  font-size:13px;
+  font-weight:700;
+  cursor:pointer;
+  font-family:Arial,Tahoma,sans-serif;
+  white-space:nowrap;
+  flex-shrink:0;
+}
+
+@media print{
+  .saveBar{ display:none !important; }
+  body{ background:#fff; padding:0; }
+  .pdfPages{ margin:0; box-shadow:none; }
+}
+</style>
+</head>
+<body>
+
+<div class="saveBar">
+  <span class="docName">📄 ${filename}</span>
+  <span class="hint">اضغط حفظ ثم اختر PDF</span>
+  <button onclick="window.print()">⬇️ حفظ / مشاركة</button>
+</div>
+
+<div class="pdfPages">
+  ${pdfPage(p, imgs)}
+  ${galleryPages.map((arr, idx) => pdfGalleryPage(p, arr, idx + 1)).join('')}
+</div>
+
+</body>
+</html>`;
+}
+
+// =============================================
+// دوال بناء محتوى PDF (لم تتغير)
+// =============================================
+
+function pdfCell(label, value){
   return `
     <div class="pdfCell">
       <small>${esc(label)}</small>
@@ -1356,7 +1482,7 @@ function pdfMapBox(p){
   `;
 }
 
-function pdfPage(p,imgs){
+function pdfPage(p, imgs){
   return `
     <section class="page">
 
@@ -1483,7 +1609,7 @@ function pdfPage(p,imgs){
   `;
 }
 
-function pdfGalleryPage(p,arr,n){
+function pdfGalleryPage(p, arr, n){
   const slots = [...arr];
 
   while(slots.length < 6){
@@ -1525,99 +1651,6 @@ function pdfGalleryPage(p,arr,n){
 
     </section>
   `;
-}
-
-async function buildPdfFile(p){
-  if(typeof html2pdf === 'undefined'){
-    alert('مكتبة إنشاء PDF غير محملة. تأكد من إضافة سطر html2pdf في index.html قبل app.js');
-    return;
-  }
-
-  const report = document.createElement('div');
-  report.className = 'pdfExportRoot';
-  report.innerHTML = buildPdfHtml(p);
-
-  document.body.appendChild(report);
-
-  const filename = `تقرير عقاري ${p.offerNo || p.id}.pdf`;
-
-  const opt = {
-    margin: 0,
-    filename,
-    image: {
-      type: 'jpeg',
-      quality: 0.98
-    },
-    html2canvas: {
-      scale: 2,
-      useCORS: true,
-      allowTaint: true,
-      backgroundColor: '#ffffff',
-      scrollX: 0,
-      scrollY: 0
-    },
-    jsPDF: {
-      unit: 'mm',
-      format: 'a4',
-      orientation: 'portrait'
-    },
-    pagebreak: {
-      mode: ['css', 'legacy']
-    }
-  };
-
-  try{
-    const worker = html2pdf().set(opt).from(report);
-    const blob = await worker.outputPdf('blob');
-
-    const file = new File([blob], filename, { type:'application/pdf' });
-
-    if(navigator.canShare && navigator.canShare({ files:[file] })){
-      await navigator.share({
-        files:[file],
-        title: filename,
-        text: filename
-      });
-    }else{
-      const url = URL.createObjectURL(blob);
-      window.open(url, '_blank');
-    }
-
-  }catch(err){
-    console.error(err);
-    alert('تعذر إنشاء ملف PDF. تأكد من اتصال الإنترنت لتحميل مكتبة PDF ثم جرّب مرة أخرى.');
-  }finally{
-    report.remove();
-  }
-}
-
-function buildPdfHtml(p){
-  const imgs = p.images || [];
-
-  const gal = imgs.slice(1).length
-    ? imgs.slice(1)
-    : imgs;
-
-  const galleryPages = [];
-
-  for(let i=0; i<gal.length; i+=6){
-    const chunk = gal.slice(i,i+6);
-
-    if(chunk.length){
-      galleryPages.push(chunk);
-    }
-  }
-
-  return `
-    <div class="pdfPages">
-      ${pdfPage(p,imgs)}
-      ${galleryPages.map((arr,idx)=>pdfGalleryPage(p,arr,idx+1)).join('')}
-    </div>
-  `;
-}
-
-function openPdf(p,preview=false){
-  buildPdfFile(p);
 }
 
 function pdfStyle(){
