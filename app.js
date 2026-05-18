@@ -222,7 +222,6 @@ function statusClass(s=''){
 function isArchiveStatus(s=''){
   return /تم التأجير|تم البيع|مؤرشف/.test(s);
 }
-
 function mapUrl(u){
   const link = String(u || '').trim();
 
@@ -311,6 +310,7 @@ function header(title='إدارة العقارات', showBack=false){
     </div>
   `;
 }
+
 function renderHome(){
   editingId = null;
   selectedImages = [];
@@ -483,7 +483,6 @@ function propertyCard(p){
     </article>
   `;
 }
-
 function renderArchive(){
   currentView = 'archive';
 
@@ -602,6 +601,7 @@ function estimateStorageSize(){
     return 0;
   }
 }
+
 function renderForm(id=null){
   editingId = id;
 
@@ -664,11 +664,6 @@ function renderForm(id=null){
         <div class="field">
           <label>نوع العقار</label>
           <input id="type" value="${esc(p?.type)}">
-        </div>
-
-        <div class="field">
-          <label>التصنيف</label>
-          <input id="category" value="${esc(p?.category)}">
         </div>
 
         ${statusSelect(p?.status || 'متاح')}
@@ -753,8 +748,7 @@ function renderForm(id=null){
         </div>
       </div>
     </section>
-
-    <section class="section">
+        <section class="section">
       <h2>${ico('service')} الوصف والخدمات</h2>
 
       <div class="gridForm">
@@ -892,6 +886,7 @@ function removeImage(i){
   selectedImages.splice(i,1);
   renderPreviews();
 }
+
 function collect(){
   const status = val('status') || 'متاح';
 
@@ -907,7 +902,6 @@ function collect(){
 
     title: val('title'),
     type: val('type'),
-    category: val('category'),
     status,
 
     city: val('city'),
@@ -1025,7 +1019,6 @@ function previewProperty(){
   const data = collect();
   openPdf(data,true);
 }
-
 function renderDetails(id){
   const p = properties.find(x => x.id === id);
 
@@ -1077,7 +1070,6 @@ function renderDetails(id){
 
       <div class="infoGrid">
         ${cell('home','نوع العقار',p.type)}
-        ${cell('home','التصنيف',p.category)}
         ${cell('service','الحالة',p.status)}
         ${cell('area','المساحة',p.area)}
         ${cell('front','الواجهة',p.frontage)}
@@ -1169,6 +1161,7 @@ function renderDetails(id){
     </div>
   `);
 }
+
 function cell(i,l,v){
   return `
     <div class="infoCell">
@@ -1295,7 +1288,6 @@ function openPdfById(id){
 
   if(p) openPdf(p,false);
 }
-
 function pdfCell(label,value){
   return `
     <div class="pdfCell">
@@ -1393,7 +1385,6 @@ function pdfPage(p,imgs){
               <div class="pdfGrid">
 
                 ${pdfCell('نوع العقار',p.type)}
-                ${pdfCell('التصنيف',p.category)}
                 ${pdfCell('الحالة',p.status)}
                 ${pdfCell('المدينة',p.city)}
                 ${pdfCell('الحي',p.district)}
@@ -1491,6 +1482,7 @@ function pdfPage(p,imgs){
     </section>
   `;
 }
+
 function pdfGalleryPage(p,arr,n){
   const slots = [...arr];
 
@@ -1587,14 +1579,8 @@ async function buildPdfFile(p){
         text: filename
       });
     }else{
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
-      a.download = filename;
-      a.click();
-
-      setTimeout(()=>{
-        URL.revokeObjectURL(a.href);
-      },1000);
+      const url = URL.createObjectURL(blob);
+      window.open(url, '_blank');
     }
 
   }catch(err){
@@ -1631,35 +1617,7 @@ function buildPdfHtml(p){
 }
 
 function openPdf(p,preview=false){
-  const html = `<!doctype html>
-  <html dir="rtl" lang="ar">
-  <head>
-    <meta charset="utf-8">
-    <title>تقرير عقاري ${esc(p.offerNo || p.id)}</title>
-
-    <style>
-      ${pdfStyle()}
-    </style>
-  </head>
-
-  <body>
-    <div class="pdfTopActions">
-      <button class="closeBtn" onclick="window.close()">إغلاق</button>
-      <button onclick="window.opener.buildPdfFile(window.__pdfData)">حفظ أو مشاركة PDF</button>
-    </div>
-
-    ${buildPdfHtml(p)}
-
-    <script>
-      window.__pdfData = ${JSON.stringify(p)};
-    <\/script>
-  </body>
-  </html>`;
-
-  const w = window.open('','_blank');
-
-  w.document.write(html);
-  w.document.close();
+  buildPdfFile(p);
 }
 
 function pdfStyle(){
@@ -2008,39 +1966,11 @@ function pdfStyle(){
       z-index:1;
     }
 
-    .pdfTopActions{
-      position:fixed;
-      top:10px;
-      left:10px;
-      right:10px;
-      z-index:99;
-      display:flex;
-      gap:8px;
-      justify-content:space-between;
-    }
-
-    .pdfTopActions button{
-      padding:12px 14px;
-      border:0;
-      border-radius:10px;
-      background:#004d3d;
-      color:white;
-      font-weight:bold;
-    }
-
-    .pdfTopActions .closeBtn{
-      background:#777;
-    }
-
     @media print{
       html,
       body{
         background:#fff;
         width:210mm;
-      }
-
-      .pdfTopActions{
-        display:none;
       }
 
       .page{
