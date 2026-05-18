@@ -527,13 +527,18 @@ function openPdf(p,preview=false){
 
 function buildFullPageHtml(p,filename){
   const imgs=p.images||[];
-  // صور المعرض: كل صور العقار (بحد أقصى 12)
   const galImgs=imgs.slice(0,12);
   const galleryPages=[];
   for(let i=0;i<galImgs.length;i+=6){
     const chunk=galImgs.slice(i,i+6);
     if(chunk.length) galleryPages.push(chunk);
   }
+
+  const pages = [
+    pdfPage(p,imgs),
+    ...galleryPages.map((arr,idx)=>pdfGalleryPage(p,arr,idx+1))
+  ];
+
   return `<!DOCTYPE html>
 <html dir="rtl" lang="ar">
 <head>
@@ -544,9 +549,30 @@ function buildFullPageHtml(p,filename){
 </head>
 <body>
 <div class="pdfPages">
-  ${pdfPage(p,imgs)}
-  ${galleryPages.map((arr,idx)=>pdfGalleryPage(p,arr,idx+1)).join('')}
+  ${pages.map((pg,i) => `<div class="pageWrap ${i===pages.length-1?'lastPage':''}">${pg}</div>`).join('')}
 </div>
+<script>
+// قبل الطباعة: نتأكد أن آخر صفحة ليس فيها break
+window.addEventListener('beforeprint', function(){
+  var pages = document.querySelectorAll('.pageWrap');
+  pages.forEach(function(p, i){
+    if(i === pages.length - 1){
+      p.style.pageBreakAfter = 'avoid';
+      p.style.breakAfter = 'avoid';
+    } else {
+      p.style.pageBreakAfter = 'always';
+      p.style.breakAfter = 'page';
+    }
+  });
+});
+window.addEventListener('afterprint', function(){
+  var pages = document.querySelectorAll('.pageWrap');
+  pages.forEach(function(p){
+    p.style.pageBreakAfter = '';
+    p.style.breakAfter = '';
+  });
+});
+<\/script>
 </body>
 </html>`;
 }
@@ -719,18 +745,20 @@ function pdfStyle(){
 
     .pdfPages{width:210mm;margin:0 auto;}
 
-    /* كل صفحة ارتفاع ثابت — لا فوتر — لا انقسام */
+    /* pageWrap يحمل page-break — يُعدَّل بـ JS قبل الطباعة */
+    .pageWrap{
+      display:block;
+      width:210mm;
+    }
     .page{
       width:210mm;
       height:297mm;
       background:#fff;
       position:relative;
       overflow:hidden;
-      page-break-after:always;
-      break-after:page;
       page-break-inside:avoid;
       break-inside:avoid;
-      }
+    }
     /* no margin between pages */
 
     /* المحتوى يملأ الصفحة كاملاً بدون مساحة للفوتر */
@@ -898,23 +926,16 @@ function pdfStyle(){
     @media print{
       *{-webkit-print-color-adjust:exact !important;print-color-adjust:exact !important;}
       html,body{background:#fff !important;margin:0;padding:0;}
-      .pdfPages{width:210mm;margin:0;padding:0;}
+      .pdfPages{width:210mm;margin:0;padding:0;display:block;}
+      .pageWrap{display:block;width:210mm;}
       .page{
-        margin:0;
-        padding:0;
-        width:210mm;
-        height:297mm;
-        page-break-after:always;
-        break-after:page;
+        margin:0;padding:0;
+        width:210mm;height:297mm;
         page-break-inside:avoid;
         break-inside:avoid;
         position:relative;
         overflow:hidden;
         display:block;
-      }
-      .page:last-child{
-        page-break-after:avoid;
-        break-after:avoid;
       }
     }
   `;
