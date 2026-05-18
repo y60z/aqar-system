@@ -241,6 +241,14 @@ function mapUrl(u){
   return 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(link);
 }
 
+function qrUrl(u){
+  const link = mapUrl(u);
+
+  if(link === '#') return '';
+
+  return 'https://quickchart.io/qr?size=180&margin=1&text=' + encodeURIComponent(link);
+}
+
 function openMap(link){
   const url = mapUrl(link);
 
@@ -1333,6 +1341,29 @@ function pdfFooter(){
   `;
 }
 
+function pdfMapBox(p){
+  if(!p.mapLink) return '';
+
+  const link = mapUrl(p.mapLink);
+  const qr = qrUrl(p.mapLink);
+
+  return `
+    <div class="mapBox">
+      <div class="mapText">
+        <strong>رابط الموقع</strong>
+        <span>اضغط الرابط أو امسح الكود ←</span>
+        <a href="${link}" target="_blank">
+          فتح الموقع في الخرائط
+        </a>
+      </div>
+
+      <div class="qrBox">
+        <img src="${qr}" alt="QR">
+      </div>
+    </div>
+  `;
+}
+
 function pdfPage(p,imgs){
   return `
     <section class="page">
@@ -1446,20 +1477,7 @@ function pdfPage(p,imgs){
                 }
               </div>
 
-              ${
-                p.mapLink
-                ? `
-                  <div class="mapBox">
-                    <a
-                      href="${mapUrl(p.mapLink)}"
-                      target="_blank"
-                    >
-                      فتح الموقع في الخرائط
-                    </a>
-                  </div>
-                `
-                : ''
-              }
+              ${pdfMapBox(p)}
             </div>
 
           </div>
@@ -1517,7 +1535,77 @@ function pdfGalleryPage(p,arr,n){
   `;
 }
 
-function openPdf(p,preview=false){
+async function buildPdfFile(p){
+  if(typeof html2pdf === 'undefined'){
+    alert('مكتبة إنشاء PDF غير محملة. تأكد من إضافة سطر html2pdf في index.html قبل app.js');
+    return;
+  }
+
+  const report = document.createElement('div');
+  report.className = 'pdfExportRoot';
+  report.innerHTML = buildPdfHtml(p);
+
+  document.body.appendChild(report);
+
+  const filename = `تقرير عقاري ${p.offerNo || p.id}.pdf`;
+
+  const opt = {
+    margin: 0,
+    filename,
+    image: {
+      type: 'jpeg',
+      quality: 0.98
+    },
+    html2canvas: {
+      scale: 2,
+      useCORS: true,
+      allowTaint: true,
+      backgroundColor: '#ffffff',
+      scrollX: 0,
+      scrollY: 0
+    },
+    jsPDF: {
+      unit: 'mm',
+      format: 'a4',
+      orientation: 'portrait'
+    },
+    pagebreak: {
+      mode: ['css', 'legacy']
+    }
+  };
+
+  try{
+    const worker = html2pdf().set(opt).from(report);
+    const blob = await worker.outputPdf('blob');
+
+    const file = new File([blob], filename, { type:'application/pdf' });
+
+    if(navigator.canShare && navigator.canShare({ files:[file] })){
+      await navigator.share({
+        files:[file],
+        title: filename,
+        text: filename
+      });
+    }else{
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = filename;
+      a.click();
+
+      setTimeout(()=>{
+        URL.revokeObjectURL(a.href);
+      },1000);
+    }
+
+  }catch(err){
+    console.error(err);
+    alert('تعذر إنشاء ملف PDF. تأكد من اتصال الإنترنت لتحميل مكتبة PDF ثم جرّب مرة أخرى.');
+  }finally{
+    report.remove();
+  }
+}
+
+function buildPdfHtml(p){
   const imgs = p.images || [];
 
   const gal = imgs.slice(1).length
@@ -1534,6 +1622,15 @@ function openPdf(p,preview=false){
     }
   }
 
+  return `
+    <div class="pdfPages">
+      ${pdfPage(p,imgs)}
+      ${galleryPages.map((arr,idx)=>pdfGalleryPage(p,arr,idx+1)).join('')}
+    </div>
+  `;
+}
+
+function openPdf(p,preview=false){
   const html = `<!doctype html>
   <html dir="rtl" lang="ar">
   <head>
@@ -1541,355 +1638,418 @@ function openPdf(p,preview=false){
     <title>تقرير عقاري ${esc(p.offerNo || p.id)}</title>
 
     <style>
-      @page{
-        size:A4;
-        margin:0;
-      }
-
-      html,
-      body{
-        margin:0;
-        padding:0;
-        background:#eee;
-        font-family:Arial,Tahoma,sans-serif;
-        color:#123;
-      }
-
-      .page{
-        width:210mm;
-        height:297mm;
-        background:#fff;
-        margin:0 auto;
-        position:relative;
-        box-sizing:border-box;
-        overflow:hidden;
-        page-break-after:always;
-        break-after:page;
-      }
-
-      .pageInner{
-        position:absolute;
-        top:10mm;
-        right:10mm;
-        left:10mm;
-        bottom:18mm;
-        box-sizing:border-box;
-        overflow:hidden;
-      }
-
-      .head{
-        height:24mm;
-        display:flex;
-        align-items:center;
-        justify-content:space-between;
-        border-bottom:3px solid #004d3d;
-        padding-bottom:6px;
-        box-sizing:border-box;
-      }
-
-      .pdfLogoBox{
-        width:46mm;
-        display:flex;
-        flex-direction:column;
-        align-items:center;
-        justify-content:center;
-        text-align:center;
-      }
-
-      .pdfLogoBox .logo{
-        width:22mm;
-        max-height:18mm;
-        object-fit:contain;
-        display:block;
-        margin:0 auto 2mm;
-      }
-
-      .pdfLogoBox p{
-        margin:0;
-        text-align:center;
-        font-weight:bold;
-        font-size:10px;
-        line-height:1.4;
-      }
-
-      .title{
-        text-align:center;
-        flex:1;
-      }
-
-      .title h1{
-        margin:0;
-        color:#004d3d;
-        font-size:22px;
-      }
-
-      .title p{
-        margin:4px 0;
-        color:#52736b;
-        font-size:12px;
-      }
-
-      .offerBox{
-        width:34mm;
-        background:#004d3d;
-        color:#fff;
-        border-radius:8px;
-        padding:8px 10px;
-        text-align:center;
-        font-size:15px;
-        box-sizing:border-box;
-      }
-
-      .offerBox b{
-        font-size:24px;
-      }
-
-      .hero{
-        display:grid;
-        grid-template-columns:1fr 1.05fr;
-        gap:10px;
-        margin-top:10px;
-      }
-
-      .heroImg{
-        height:190px;
-        border-radius:10px;
-        overflow:hidden;
-        background:#eef2f1;
-      }
-
-      .heroImg img{
-        width:100%;
-        height:100%;
-        object-fit:cover;
-        display:block;
-      }
-
-      .pdfGrid{
-        display:grid;
-        grid-template-columns:repeat(3,1fr);
-        border:1px solid #d8e2df;
-        border-radius:9px;
-        overflow:hidden;
-      }
-
-      .pdfCell{
-        min-height:50px;
-        border:1px solid #d8e2df;
-        text-align:center;
-        padding:6px;
-        box-sizing:border-box;
-      }
-
-      .pdfCell small{
-        display:block;
-        color:#567;
-        font-size:10px;
-      }
-
-      .pdfCell b{
-        display:block;
-        margin-top:4px;
-        color:#0a332d;
-        font-size:12px;
-      }
-
-      .bar{
-        background:#004d3d;
-        color:#fff;
-        text-align:center;
-        font-weight:bold;
-        padding:5px;
-        border-radius:6px 6px 0 0;
-        margin-top:8px;
-        font-size:12px;
-      }
-
-      .tbl{
-        width:100%;
-        border-collapse:collapse;
-      }
-
-      .tbl th{
-        background:#00664f;
-        color:#fff;
-      }
-
-      .tbl td,
-      .tbl th{
-        border:1px solid #d8e2df;
-        padding:5px;
-        text-align:center;
-        font-size:11px;
-      }
-
-      .two{
-        display:grid;
-        grid-template-columns:1fr 1.15fr;
-        gap:10px;
-      }
-
-      .box{
-        border:1px solid #d8e2df;
-        border-radius:0 0 8px 8px;
-        padding:8px;
-        min-height:52px;
-        font-size:11px;
-        box-sizing:border-box;
-      }
-
-      .services{
-        display:grid;
-        grid-template-columns:repeat(4,1fr);
-      }
-
-      .services div{
-        border:1px solid #d8e2df;
-        text-align:center;
-        padding:6px;
-        font-size:10px;
-        box-sizing:border-box;
-      }
-
-      .sixGallery{
-        display:grid;
-        grid-template-columns:1fr 1fr;
-        grid-template-rows:repeat(3,1fr);
-        gap:8mm;
-        margin-top:8mm;
-        height:206mm;
-      }
-
-      .gallerySlot{
-        width:100%;
-        height:100%;
-        border:1px solid #d8e2df;
-        border-radius:8px;
-        overflow:hidden;
-        background:#f4f7f6;
-        box-sizing:border-box;
-      }
-
-      .gallerySlot img{
-        width:100%;
-        height:100%;
-        object-fit:cover;
-        display:block;
-      }
-
-      .emptyPhoto{
-        width:100%;
-        height:100%;
-        background:linear-gradient(135deg,#f4f7f6,#eaf0ed);
-      }
-
-      .mapBox{
-        border:1px solid #d8e2df;
-        border-radius:8px;
-        padding:8px;
-        text-align:center;
-        margin-top:8px;
-      }
-
-      .mapBox a{
-        color:#004d3d;
-        font-weight:bold;
-        text-decoration:none;
-      }
-
-      .foot{
-        position:absolute;
-        left:0;
-        right:0;
-        bottom:0;
-        background:#004d3d;
-        color:#fff;
-        height:16mm;
-        display:flex;
-        align-items:center;
-        justify-content:space-around;
-        font-size:10px;
-        padding:0 8mm;
-        box-sizing:border-box;
-      }
-
-      .wm{
-        position:absolute;
-        inset:40mm 20mm auto;
-        opacity:.035;
-        text-align:center;
-        font-size:150px;
-        font-weight:bold;
-        color:#004d3d;
-        z-index:0;
-      }
-
-      .content{
-        position:relative;
-        z-index:1;
-      }
-
-      .pdfTopActions{
-        position:fixed;
-        top:10px;
-        left:10px;
-        right:10px;
-        z-index:99;
-        display:flex;
-        gap:8px;
-        justify-content:space-between;
-      }
-
-      .pdfTopActions button{
-        padding:12px 14px;
-        border:0;
-        border-radius:10px;
-        background:#004d3d;
-        color:white;
-        font-weight:bold;
-      }
-
-      .pdfTopActions .closeBtn{
-        background:#777;
-      }
-
-      @media print{
-        html,
-        body{
-          background:#fff;
-          width:210mm;
-        }
-
-        .pdfTopActions{
-          display:none;
-        }
-
-        .page{
-          margin:0;
-          page-break-after:always;
-          break-after:page;
-        }
-      }
+      ${pdfStyle()}
     </style>
   </head>
 
   <body>
     <div class="pdfTopActions">
       <button class="closeBtn" onclick="window.close()">إغلاق</button>
-      <button onclick="window.print()">حفظ أو مشاركة PDF</button>
+      <button onclick="window.opener.buildPdfFile(window.__pdfData)">حفظ أو مشاركة PDF</button>
     </div>
 
-    ${pdfPage(p,imgs)}
+    ${buildPdfHtml(p)}
 
-    ${galleryPages.map((arr,idx)=>pdfGalleryPage(p,arr,idx+1)).join('')}
+    <script>
+      window.__pdfData = ${JSON.stringify(p)};
+    <\/script>
   </body>
   </html>`;
 
   const w = window.open('','_blank');
 
   w.document.write(html);
-
   w.document.close();
+}
+
+function pdfStyle(){
+  return `
+    @page{
+      size:A4;
+      margin:0;
+    }
+
+    html,
+    body{
+      margin:0;
+      padding:0;
+      background:#eee;
+      font-family:Arial,Tahoma,sans-serif;
+      color:#123;
+    }
+
+    .pdfExportRoot{
+      position:fixed;
+      left:-99999px;
+      top:0;
+      width:210mm;
+      background:#fff;
+      z-index:-1;
+    }
+
+    .pdfPages{
+      width:210mm;
+      background:#fff;
+    }
+
+    .page{
+      width:210mm;
+      height:297mm;
+      background:#fff;
+      margin:0 auto;
+      position:relative;
+      box-sizing:border-box;
+      overflow:hidden;
+      page-break-after:always;
+      break-after:page;
+    }
+
+    .pageInner{
+      position:absolute;
+      top:10mm;
+      right:10mm;
+      left:10mm;
+      bottom:18mm;
+      box-sizing:border-box;
+      overflow:hidden;
+    }
+
+    .head{
+      height:24mm;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      border-bottom:3px solid #004d3d;
+      padding-bottom:6px;
+      box-sizing:border-box;
+    }
+
+    .pdfLogoBox{
+      width:46mm;
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      justify-content:center;
+      text-align:center;
+    }
+
+    .pdfLogoBox .logo{
+      width:22mm;
+      max-height:18mm;
+      object-fit:contain;
+      display:block;
+      margin:0 auto 2mm;
+    }
+
+    .pdfLogoBox p{
+      margin:0;
+      text-align:center;
+      font-weight:bold;
+      font-size:10px;
+      line-height:1.4;
+    }
+
+    .title{
+      text-align:center;
+      flex:1;
+    }
+
+    .title h1{
+      margin:0;
+      color:#004d3d;
+      font-size:22px;
+    }
+
+    .title p{
+      margin:4px 0;
+      color:#52736b;
+      font-size:12px;
+    }
+
+    .offerBox{
+      width:34mm;
+      background:#004d3d;
+      color:#fff;
+      border-radius:8px;
+      padding:8px 10px;
+      text-align:center;
+      font-size:15px;
+      box-sizing:border-box;
+    }
+
+    .offerBox b{
+      font-size:24px;
+    }
+
+    .hero{
+      display:grid;
+      grid-template-columns:1fr 1.05fr;
+      gap:10px;
+      margin-top:10px;
+    }
+
+    .heroImg{
+      height:190px;
+      border-radius:10px;
+      overflow:hidden;
+      background:#eef2f1;
+    }
+
+    .heroImg img{
+      width:100%;
+      height:100%;
+      object-fit:cover;
+      display:block;
+    }
+
+    .pdfGrid{
+      display:grid;
+      grid-template-columns:repeat(3,1fr);
+      border:1px solid #d8e2df;
+      border-radius:9px;
+      overflow:hidden;
+    }
+
+    .pdfCell{
+      min-height:50px;
+      border:1px solid #d8e2df;
+      text-align:center;
+      padding:6px;
+      box-sizing:border-box;
+    }
+
+    .pdfCell small{
+      display:block;
+      color:#567;
+      font-size:10px;
+    }
+
+    .pdfCell b{
+      display:block;
+      margin-top:4px;
+      color:#0a332d;
+      font-size:12px;
+    }
+
+    .bar{
+      background:#004d3d;
+      color:#fff;
+      text-align:center;
+      font-weight:bold;
+      padding:5px;
+      border-radius:6px 6px 0 0;
+      margin-top:8px;
+      font-size:12px;
+    }
+
+    .tbl{
+      width:100%;
+      border-collapse:collapse;
+    }
+
+    .tbl th{
+      background:#00664f;
+      color:#fff;
+    }
+
+    .tbl td,
+    .tbl th{
+      border:1px solid #d8e2df;
+      padding:5px;
+      text-align:center;
+      font-size:11px;
+    }
+
+    .two{
+      display:grid;
+      grid-template-columns:1fr 1.15fr;
+      gap:10px;
+    }
+
+    .box{
+      border:1px solid #d8e2df;
+      border-radius:0 0 8px 8px;
+      padding:8px;
+      min-height:52px;
+      font-size:11px;
+      box-sizing:border-box;
+    }
+
+    .services{
+      display:grid;
+      grid-template-columns:repeat(4,1fr);
+    }
+
+    .services div{
+      border:1px solid #d8e2df;
+      text-align:center;
+      padding:6px;
+      font-size:10px;
+      box-sizing:border-box;
+    }
+
+    .mapBox{
+      display:grid;
+      grid-template-columns:1fr 28mm;
+      gap:6mm;
+      align-items:center;
+      border:1px solid #d8e2df;
+      border-radius:8px;
+      padding:7px;
+      margin-top:8px;
+      box-sizing:border-box;
+      background:#f8fbfa;
+    }
+
+    .mapText{
+      text-align:right;
+    }
+
+    .mapText strong{
+      display:block;
+      color:#004d3d;
+      font-size:12px;
+      margin-bottom:3px;
+    }
+
+    .mapText span{
+      display:block;
+      color:#52736b;
+      font-size:10px;
+      margin-bottom:4px;
+    }
+
+    .mapText a{
+      color:#004d3d;
+      font-weight:bold;
+      text-decoration:none;
+      font-size:11px;
+      word-break:break-word;
+    }
+
+    .qrBox{
+      width:28mm;
+      height:28mm;
+      border:1px solid #004d3d;
+      border-radius:6px;
+      padding:2mm;
+      box-sizing:border-box;
+      background:#fff;
+    }
+
+    .qrBox img{
+      width:100%;
+      height:100%;
+      object-fit:contain;
+      display:block;
+    }
+
+    .sixGallery{
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      grid-template-rows:repeat(3,1fr);
+      gap:8mm;
+      margin-top:8mm;
+      height:206mm;
+    }
+
+    .gallerySlot{
+      width:100%;
+      height:100%;
+      border:1px solid #d8e2df;
+      border-radius:8px;
+      overflow:hidden;
+      background:#f4f7f6;
+      box-sizing:border-box;
+    }
+
+    .gallerySlot img{
+      width:100%;
+      height:100%;
+      object-fit:cover;
+      display:block;
+    }
+
+    .emptyPhoto{
+      width:100%;
+      height:100%;
+      background:linear-gradient(135deg,#f4f7f6,#eaf0ed);
+    }
+
+    .foot{
+      position:absolute;
+      left:0;
+      right:0;
+      bottom:0;
+      background:#004d3d;
+      color:#fff;
+      height:16mm;
+      display:flex;
+      align-items:center;
+      justify-content:space-around;
+      font-size:10px;
+      padding:0 8mm;
+      box-sizing:border-box;
+    }
+
+    .wm{
+      position:absolute;
+      inset:40mm 20mm auto;
+      opacity:.035;
+      text-align:center;
+      font-size:150px;
+      font-weight:bold;
+      color:#004d3d;
+      z-index:0;
+    }
+
+    .content{
+      position:relative;
+      z-index:1;
+    }
+
+    .pdfTopActions{
+      position:fixed;
+      top:10px;
+      left:10px;
+      right:10px;
+      z-index:99;
+      display:flex;
+      gap:8px;
+      justify-content:space-between;
+    }
+
+    .pdfTopActions button{
+      padding:12px 14px;
+      border:0;
+      border-radius:10px;
+      background:#004d3d;
+      color:white;
+      font-weight:bold;
+    }
+
+    .pdfTopActions .closeBtn{
+      background:#777;
+    }
+
+    @media print{
+      html,
+      body{
+        background:#fff;
+        width:210mm;
+      }
+
+      .pdfTopActions{
+        display:none;
+      }
+
+      .page{
+        margin:0;
+        page-break-after:always;
+        break-after:page;
+      }
+    }
+  `;
 }
 
 function renderSettings(){
