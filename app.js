@@ -123,7 +123,12 @@ function header(title='إدارة العقارات',showBack=false){
       </div>
       <div class="topBtns noPrint">
         <button onclick="renderSettings()">${ico('settings')}</button>
-        ${!showBack?`<button class="primary" onclick="renderForm()">${ico('add')} إضافة عقار</button>`:''}
+        ${!showBack?`
+          <button onclick="renderArchive()" style="background:#f0f5f3;color:#004d3d;border:1px solid #c0d8d0;border-radius:10px;padding:7px 14px;font-weight:700;font-size:13px;">
+            ${ico('archive')} الأرشيف
+          </button>
+          <button class="primary" onclick="renderForm()">${ico('add')} إضافة عقار</button>
+        `:''}
       </div>
     </div>
   `;
@@ -140,7 +145,7 @@ function renderHome(){
       <div class="chips">
         <button class="chip active" id="chip-all" onclick="setTypeFilter('')">الكل</button>
         ${types.map(t=>`<button class="chip" onclick="setTypeFilter('${esc(t)}')">${esc(t)}</button>`).join('')}
-        <button class="chip" onclick="renderArchive()">الأرشيف</button>
+
       </div>
     </div>
     <div id="list" class="list"></div>
