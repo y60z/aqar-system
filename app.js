@@ -661,7 +661,7 @@ function archivedCard(p){
         <div class="offerNum">عرض رقم <span>${esc(p.offerNo||p.id)}</span></div>
         <div class="cardActions">
           <div class="actBtn danger" onclick="deleteProperty('${p.id}')">🗑</div>
-          <div class="actBtn" onclick="unarchiveProperty('${p.id}')">↩ نقل للعام</div>
+          <div class="actBtn" onclick="unarchiveProperty('${p.id}')">↩</div>
           <div class="actBtn primary" onclick="renderDetails('${p.id}')">عرض</div>
         </div>
       </div>
@@ -1000,7 +1000,7 @@ function renderDetails(id){
 
   render(`
     <div class="backRow">
-      <button class="backBtn" onclick="${p.archived?'renderArchive()':'renderHome()}">‹ رجوع</button>
+      <button class="backBtn" onclick="goBack('${p.id}')">‹ رجوع</button>
       <div class="pageTitle">عرض رقم ${esc(p.offerNo||p.id)}</div>
     </div>
 
@@ -1201,6 +1201,12 @@ function deleteProperty(id){
   if(!confirm('حذف نهائي للعرض؟')) return;
   properties = properties.filter(p=>p.id!==id);
   saveStore(); renderHome();
+}
+
+function goBack(id){
+  const p = properties.find(x=>x.id===id);
+  if(p && p.archived) renderArchive();
+  else renderHome();
 }
 
 function openPdfById(id){
