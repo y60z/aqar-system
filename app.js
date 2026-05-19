@@ -26,6 +26,9 @@ const DEFAULT_SETTINGS = {
 
 settings = { ...DEFAULT_SETTINGS, ...settings };
 
+// الشعار — يُحمَّل من الإعدادات أو من logo.jpeg
+function getLogoSrc(){ return settings.logo || 'logo.jpeg'; }
+
 const $   = id => document.getElementById(id);
 const app = ()  => $('app');
 
@@ -1303,7 +1306,7 @@ function buildDataPage(p,imgs){
         <div style="font-size:11px;color:#52736b;margin-top:3px;">للاطلاع على بيانات العقار ومشاركته</div>
       </div>
       <div style="text-align:center;min-width:110px;">
-        <img src="${EMBEDDED_LOGO}" style="height:50px;object-fit:contain;display:block;margin:0 auto 4px;">
+        <img src="${getLogoSrc()}" style="height:50px;object-fit:contain;display:block;margin:0 auto 4px;">
         <div style="font-size:9px;font-weight:bold;color:#004d3d;line-height:1.3;">${rawEsc(company)}</div>
       </div>
     </div>
@@ -1384,7 +1387,7 @@ function buildDataPage(p,imgs){
         <div style="background:linear-gradient(135deg,#003d30,#005a45);border-radius:12px;padding:14px;color:#fff;flex:1;">
           <div style="display:flex;flex-direction:column;align-items:center;gap:8px;text-align:center;">
             <div style="width:54px;height:54px;background:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;padding:4px;">
-              <img src="${EMBEDDED_LOGO}" style="width:100%;height:100%;object-fit:contain;">
+              <img src="${getLogoSrc()}" style="width:100%;height:100%;object-fit:contain;">
             </div>
             <div style="font-size:12px;font-weight:900;">${rawEsc(company)}</div>
             ${phone1?`<div style="font-size:10px;color:#c8f0e4;">☎ ${rawEsc(phone1)}${phone2?' | ☎ '+rawEsc(phone2):''}</div>`:''}
@@ -1414,7 +1417,7 @@ function buildGalleryPage(p,imgs,pageNum){
         <div style="font-size:11px;color:#52736b;margin-top:3px;">${rawEsc([p.city,p.district].filter(Boolean).join(' - '))}</div>
       </div>
       <div style="text-align:center;min-width:110px;">
-        <img src="${EMBEDDED_LOGO}" style="height:50px;object-fit:contain;display:block;margin:0 auto 4px;">
+        <img src="${getLogoSrc()}" style="height:50px;object-fit:contain;display:block;margin:0 auto 4px;">
         <div style="font-size:9px;font-weight:bold;color:#004d3d;">${rawEsc(company)}</div>
       </div>
     </div>
@@ -1554,11 +1557,6 @@ function importBackup(e){
   };
   r.readAsText(f);
 }
-
-// =============================================
-// الشعار المضمّن
-// =============================================
-const EMBEDDED_LOGO = settings.logo || 'logo.jpeg';
 
 // =============================================
 // تشغيل
