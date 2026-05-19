@@ -997,7 +997,7 @@ function renderDetails(id){
 
   render(`
     <div class="backRow">
-      <button class="backBtn" onclick="${p.archived?'renderArchive()':'renderHome()}'"}>‹ رجوع</button>
+      <button class="backBtn" onclick="${p.archived?'renderArchive()':'renderHome()}">‹ رجوع</button>
       <div class="pageTitle">عرض رقم ${esc(p.offerNo||p.id)}</div>
     </div>
 
@@ -1122,7 +1122,7 @@ function renderPersonPage(name, key){
 
   render(`
     <div class="backRow">
-      <button class="backBtn" onclick="history.back()">‹ رجوع</button>
+      <button class="backBtn" onclick="renderHome()">‹ رجوع</button>
       <div class="pageTitle">${label}: ${esc(name)}</div>
     </div>
 
