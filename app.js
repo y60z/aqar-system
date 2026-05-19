@@ -547,7 +547,7 @@ function renderHome(){
     <div class="filtersRow">
       <button class="chip active" id="chip-all" onclick="setTypeFilter('')">الكل</button>
       ${types.map(t=>`<button class="chip" onclick="setTypeFilter('${esc(t)}')">${esc(t)}</button>`).join('')}
-      <button class="chip archiveChip" onclick="renderArchive()">📁 الأرشيف</button>
+      
     </div>
     <div class="propList" id="list"></div>
   `);
@@ -1088,7 +1088,7 @@ function renderDetails(id){
 
     </div>
 
-    <div style="height:70px;"></div>
+    <div style="height:80px;"></div>
 
     <div class="actionBar">
       <button class="abBtn primary" onclick="renderForm('${p.id}')">✎ تعديل</button>
