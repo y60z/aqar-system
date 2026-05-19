@@ -5,9 +5,74 @@
 
 const KEY          = 'rawad_aqar_properties_final_v1';
 const SETTINGS_KEY = 'rawad_aqar_settings_final_v1';
+const DB_NAME      = 'RawadAqarDB';
+const DB_VERSION   = 1;
 
-let properties = JSON.parse(localStorage.getItem(KEY) || '[]');
-let settings   = JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}');
+let properties = [];
+let settings   = {};
+let db         = null;
+
+// =============================================
+// IndexedDB — تهيئة قاعدة البيانات
+// =============================================
+function initDB(){
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(DB_NAME, DB_VERSION);
+
+    req.onupgradeneeded = e => {
+      const d = e.target.result;
+      if(!d.objectStoreNames.contains('properties')){
+        d.createObjectStore('properties', { keyPath:'id' });
+      }
+      if(!d.objectStoreNames.contains('settings')){
+        d.createObjectStore('settings', { keyPath:'key' });
+      }
+    };
+
+    req.onsuccess = e => {
+      db = e.target.result;
+      resolve(db);
+    };
+
+    req.onerror = () => reject(req.error);
+  });
+}
+
+function dbGetAll(store){
+  return new Promise((resolve, reject) => {
+    const tx  = db.transaction(store, 'readonly');
+    const req = tx.objectStore(store).getAll();
+    req.onsuccess = () => resolve(req.result);
+    req.onerror   = () => reject(req.error);
+  });
+}
+
+function dbPut(store, item){
+  return new Promise((resolve, reject) => {
+    const tx  = db.transaction(store, 'readwrite');
+    const req = tx.objectStore(store).put(item);
+    req.onsuccess = () => resolve();
+    req.onerror   = () => reject(req.error);
+  });
+}
+
+function dbDelete(store, id){
+  return new Promise((resolve, reject) => {
+    const tx  = db.transaction(store, 'readwrite');
+    const req = tx.objectStore(store).delete(id);
+    req.onsuccess = () => resolve();
+    req.onerror   = () => reject(req.error);
+  });
+}
+
+function dbClear(store){
+  return new Promise((resolve, reject) => {
+    const tx  = db.transaction(store, 'readwrite');
+    const req = tx.objectStore(store).clear();
+    req.onsuccess = () => resolve();
+    req.onerror   = () => reject(req.error);
+  });
+}
 
 let editingId     = null;
 let selectedImages = [];
@@ -35,8 +100,33 @@ const app = ()  => $('app');
 // =============================================
 // تخزين
 // =============================================
-function saveStore()   { localStorage.setItem(KEY,          JSON.stringify(properties)); }
-function saveSettings(){ localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));  }
+async function saveStore(){
+  if(!db) return;
+  // احفظ كل عقار على حدة في IndexedDB
+  for(const p of properties){
+    await dbPut('properties', p);
+  }
+}
+
+async function saveSettings(){
+  if(!db) return;
+  await dbPut('settings', { key: SETTINGS_KEY, value: settings });
+  // احتياطي في localStorage للإعدادات فقط (خفيفة)
+  try{ localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)); }catch(e){}
+}
+
+async function deleteFromStore(id){
+  if(!db) return;
+  await dbDelete('properties', id);
+}
+
+async function clearAndSaveAll(){
+  if(!db) return;
+  await dbClear('properties');
+  for(const p of properties){
+    await dbPut('properties', p);
+  }
+}
 
 // =============================================
 // مساعدات
@@ -563,7 +653,7 @@ function filteredList(archived=false){
   if(typeFilter) list = list.filter(p=>p.type===typeFilter);
   if(offer) list = list.filter(p=>String(p.offerNo||'').includes(offer));
   if(q) list = list.filter(p=>JSON.stringify(p).toLowerCase().includes(q));
-  return list.sort((a,b)=>(b.updatedAt||'').localeCompare(a.updatedAt||''));
+  return list.sort((a,b)=>parseInt(b.offerNo||0,10)-parseInt(a.offerNo||0,10));
 }
 
 function renderPropertyList(){
@@ -970,7 +1060,7 @@ function collect(){
   };
 }
 
-function saveProperty(next='home'){
+async function saveProperty(next='home'){
   try{
     const data = collect();
     if(editingId){
@@ -980,12 +1070,12 @@ function saveProperty(next='home'){
     } else {
       properties.push(data); editingId = data.id;
     }
-    saveStore(); toast('تم حفظ العقار ✅');
+    await dbPut('properties', data);
+    toast('تم حفظ العقار ✅');
     if(next==='new'){ editingId=null; selectedImages=[]; setTimeout(()=>renderForm(),300); return; }
     setTimeout(()=>renderHome(),300);
   }catch(err){
     console.error(err);
-    if(String(err).toLowerCase().includes('quota')){ alert('مساحة التخزين ممتلئة. احذف بعض الصور.'); return; }
     alert('خطأ: '+err.message);
   }
 }
@@ -1186,15 +1276,19 @@ function renderPersonPage(name, key){
 // =============================================
 // أرشفة / إلغاء / حذف
 // =============================================
-function archiveProperty(id){
+async function archiveProperty(id){
   if(!confirm('نقل العرض إلى الأرشيف؟')) return;
   properties = properties.map(p=>p.id===id?{...p,archived:true}:p);
-  saveStore(); renderHome();
+  const p = properties.find(x=>x.id===id);
+  if(p) await dbPut('properties', p);
+  renderHome();
 }
 
-function unarchiveProperty(id){
+async function unarchiveProperty(id){
   properties = properties.map(p=>p.id===id?{...p,archived:false,status:p.status==='مؤرشف'?'متاح':p.status}:p);
-  saveStore(); renderArchive();
+  const p = properties.find(x=>x.id===id);
+  if(p) await dbPut('properties', p);
+  renderArchive();
 }
 
 function deleteProperty(id){
@@ -1491,21 +1585,21 @@ function renderSettings(){
   `);
 }
 
-function saveSettingsForm(){
+async function saveSettingsForm(){
   settings.company = val('setCompany');
   settings.phone1  = val('setPhone1');
   settings.phone2  = val('setPhone2');
   settings.email   = val('setEmail');
   settings.address = val('setAddress');
   settings.website = val('setWebsite');
-  saveSettings();
+  await saveSettings();
   toast('تم حفظ الإعدادات ✅');
 }
 
 function loadLogo(e){
   const f = e.target.files[0]; if(!f) return;
   const r = new FileReader();
-  r.onload = ()=>{ settings.logo=r.result; saveSettings(); toast('تم حفظ الشعار ✅'); };
+  r.onload = async ()=>{ settings.logo=r.result; await saveSettings(); toast('تم حفظ الشعار ✅'); };
   r.readAsDataURL(f);
 }
 
@@ -1525,7 +1619,7 @@ function exportBackup(){
 function importBackup(e){
   const f = e.target.files[0]; if(!f) return;
   const r = new FileReader();
-  r.onload = ()=>{
+  r.onload = async ()=>{
     try{
       const data = JSON.parse(r.result);
       if(!data.properties){ alert('ملف النسخة غير صحيح'); return; }
@@ -1539,10 +1633,7 @@ function importBackup(e){
       const merged = [...properties];
 
       for(const imp of imported){
-        // هل يوجد نفس المعرف الداخلي؟ → تخطى (موجود أصلاً)
         if(merged.find(p=>p.id===imp.id)) continue;
-
-        // هل رقم العرض مكرر؟ → أعطه رقماً جديداً
         const impNum = String(imp.offerNo||'').replace(/\D/g,'');
         if(impNum && existingNums.has(impNum)){
           nextNum++;
@@ -1554,7 +1645,13 @@ function importBackup(e){
 
       properties = merged;
       settings = { ...DEFAULT_SETTINGS, ...(data.settings||{}), ...settings };
-      saveStore(); saveSettings();
+
+      // احفظ في IndexedDB
+      for(const p of properties){
+        await dbPut('properties', p);
+      }
+      await saveSettings();
+
       toast(`تم الدمج ✅ — ${imported.length} عقار من النسخة`);
       renderHome();
     }catch(err){
@@ -1571,4 +1668,54 @@ if('serviceWorker' in navigator){
   navigator.serviceWorker.register('sw.js').catch(()=>{});
 }
 
-renderHome();
+// تحميل البيانات من IndexedDB ثم تشغيل التطبيق
+async function loadAndStart(){
+  try{
+    await initDB();
+
+    // تحميل العقارات
+    const stored = await dbGetAll('properties');
+    if(stored && stored.length > 0){
+      properties = stored;
+    } else {
+      // ترحيل من localStorage إن وجد
+      const old = localStorage.getItem(KEY);
+      if(old){
+        try{
+          properties = JSON.parse(old);
+          // نقل للـ IndexedDB
+          for(const p of properties){
+            await dbPut('properties', p);
+          }
+          localStorage.removeItem(KEY);
+          toast('تم نقل البيانات لمساحة أكبر ✅');
+        }catch(e){ properties = []; }
+      }
+    }
+
+    // تحميل الإعدادات
+    const storedSettings = await dbGetAll('settings');
+    const settingsRecord  = storedSettings.find(s=>s.key===SETTINGS_KEY);
+    if(settingsRecord){
+      settings = { ...DEFAULT_SETTINGS, ...settingsRecord.value };
+    } else {
+      // ترحيل من localStorage
+      const oldS = localStorage.getItem(SETTINGS_KEY);
+      if(oldS){
+        try{ settings = { ...DEFAULT_SETTINGS, ...JSON.parse(oldS) }; }
+        catch(e){}
+      }
+    }
+
+  }catch(err){
+    console.warn('IndexedDB غير متاح، نرجع للـ localStorage:', err);
+    try{
+      properties = JSON.parse(localStorage.getItem(KEY)||'[]');
+      settings   = { ...DEFAULT_SETTINGS, ...JSON.parse(localStorage.getItem(SETTINGS_KEY)||'{}') };
+    }catch(e){}
+  }
+
+  renderHome();
+}
+
+loadAndStart();
